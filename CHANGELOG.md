@@ -1,5 +1,43 @@
 # Change Log
 
+## v1.0.2
+
+### Bug fixes
+
+* Fix HomeKit temperature threshold validation errors for Air Conditioner
+  - Clamp temperature values to HomeKit valid range (10-38°C)
+  - Prevents "illegal value" errors when device reports out-of-range temperatures
+
+### Changes
+
+* Move homebridge-config-ui-x to devDependencies (reduces production bundle size)
+
+## v1.0.1
+
+### Bug fixes
+
+* Fix lint error in Microwave.ts (line too long)
+
+### Documentation
+
+* Add authorization documentation (docs/authorization.md)
+* Add device configuration documentation (docs/device-configuration.md)
+* Update README to link to local docs
+
+## v1.0.0
+
+### Initial Release
+
+* Fork from nVuln/homebridge-lg-thinq
+* Support for Air Conditioner, Air Purifier, Dehumidifier, Dishwasher, Refrigerator, Washer & Dryer, Oven, Microwave, Range Hood, AeroTower
+* Web-based configuration UI with 3-step wizard
+* ThinQ1 and ThinQ2 API support
+* Real-time device updates via MQTT (ThinQ2)
+
+---
+
+# Previous Changelog (from upstream)
+
 ## v1.8.0
 
 ### Washer is fixed now
