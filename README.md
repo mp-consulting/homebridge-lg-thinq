@@ -66,11 +66,11 @@ npm i -g homebridge-lg-thinq
 
 ## Plugin Authorization Setting
 
-* See [Wiki - Plugin Authorization Setting](https://github.com/mp-consulting/homebridge-lg-thinq/wiki/Plugin-Authorization-Setting)
+* See [Plugin Authorization Setting](docs/authorization.md)
 
 ## Device specific configuration
 
-* See [Wiki - Device Configuration](https://github.com/mp-consulting/homebridge-lg-thinq/wiki/Device-Configuration)
+* See [Device Configuration](docs/device-configuration.md)
 
 ## Implementation Status
 
