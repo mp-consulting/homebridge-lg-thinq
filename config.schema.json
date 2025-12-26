@@ -1,0 +1,399 @@
+{
+  "pluginAlias": "LGThinQ",
+  "pluginType": "platform",
+  "singular": true,
+  "customUi": true,
+  "strictValidation": false,
+  "schema": {
+    "auth_mode": {
+      "title": "Auth Mode",
+      "type": "string",
+      "default": "account",
+      "oneOf": [
+        {
+          "title": "LG Account",
+          "enum": [
+            "account"
+          ]
+        },
+        {
+          "title": "Token",
+          "enum": [
+            "token"
+          ]
+        }
+      ]
+    },
+    "username": {
+      "title": "Username",
+      "type": "string",
+      "condition": {
+        "functionBody": "return model.auth_mode === 'account';"
+      }
+    },
+    "password": {
+      "title": "Password",
+      "type": "string",
+      "condition": {
+        "functionBody": "return model.auth_mode === 'account';"
+      }
+    },
+    "refresh_token": {
+      "title": "Refresh Token",
+      "type": "string",
+      "condition": {
+        "functionBody": "return model.auth_mode === 'token';"
+      }
+    },
+    "country": {
+      "title": "Country",
+      "type": "string",
+      "default": "US",
+      "required": true
+    },
+    "language": {
+      "title": "Language",
+      "type": "string",
+      "default": "en-US",
+      "required": true
+    },
+    "thinq1": {
+      "title": "Enable ThinQ1 Support?",
+      "type": "boolean",
+      "default": false
+    },
+    "refresh_interval": {
+      "title": "Refresh interval (in second)",
+      "type": "number",
+      "default": 60,
+      "condition": {
+        "functionBody": "return !!model.thinq1;"
+      }
+    },
+    "devices": {
+      "title": "Devices",
+      "description": "leave it empty to enable all device in account",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "title": "Device ID",
+            "type": "string",
+            "required": true
+          },
+          "name": {
+            "title": "Device Name",
+            "type": "string"
+          },
+          "type": {
+            "title": "Device Type",
+            "type": "string",
+            "enum": [
+              "AC",
+              "WASHER",
+              "WASHER_NEW",
+              "WASH_TOWER",
+              "DRYER",
+              "REFRIGERATOR",
+              "DISHWASHER",
+              "AIR_PURIFIER",
+              "DEHUMIDIFIER",
+              "AERO_TOWER",
+              "OVEN",
+              "RANGE",
+              "COOKTOP"
+            ],
+            "condition": {
+              "functionBody": "return false;"
+            }
+          },
+          "serial_number": {
+            "title": "Serial Number (optional)",
+            "type": "string"
+          },
+          "dishwasher_trigger": {
+            "title": "Enable program finished trigger?",
+            "type": "boolean"
+          },
+          "washer_tub_clean": {
+            "title": "Enable Tub Clean Event",
+            "type": "boolean"
+          },
+          "washer_trigger": {
+            "title": "Enable program finished trigger?",
+            "type": "boolean"
+          },
+          "washer_door_lock": {
+            "title": "Enable door lock status",
+            "type": "boolean"
+          },
+          "ac_air_quality": {
+            "title": "Enable Air Quality",
+            "description": "if your device supported Air Quality sensor",
+            "type": "boolean"
+          },
+          "ac_mode": {
+            "title": "AC Mode (Heating or Cooling or Both)",
+            "type": "string",
+            "oneOf": [
+              {
+                "title": "Both Heating and Cooling mode",
+                "enum": [
+                  "BOTH"
+                ]
+              },
+              {
+                "title": "Cooling mode only",
+                "enum": [
+                  "COOLING"
+                ]
+              },
+              {
+                "title": "Heating mode only",
+                "enum": [
+                  "HEATING"
+                ]
+              }
+            ]
+          },
+          "ac_swing_mode": {
+            "title": "Swing Mode (vertical or horizontal)",
+            "type": "string",
+            "oneOf": [
+              {
+                "title": "Both vertical and horizontal swing",
+                "enum": [
+                  "BOTH"
+                ]
+              },
+              {
+                "title": "Vertical swing only",
+                "enum": [
+                  "VERTICAL"
+                ]
+              },
+              {
+                "title": "Horizontal swing only",
+                "enum": [
+                  "HORIZONTAL"
+                ]
+              }
+            ]
+          },
+          "ac_temperature_sensor": {
+            "title": "Current temperature as sensor",
+            "type": "boolean"
+          },
+          "ac_humidity_sensor": {
+            "title": "Enable humidity sensor",
+            "type": "boolean"
+          },
+          "ac_led_control": {
+            "title": "Enable led panel control",
+            "type": "boolean"
+          },
+          "ac_fan_control": {
+            "title": "Enable separate fan control",
+            "type": "boolean"
+          },
+          "ac_jet_control": {
+            "title": "Enable separate jet control",
+            "type": "boolean"
+          },
+          "ac_buttons": {
+            "title": "Customize AC buttons",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "op_mode": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "ac_energy_save": {
+            "title": "Energy save as switch",
+            "type": "boolean",
+            "default": true
+          },
+          "ac_air_clean": {
+            "title": "Air purify as switch",
+            "type": "boolean",
+            "default": true
+          },
+          "ac_temperature_unit": {
+            "title": "Temperature Unit",
+            "type": "string",
+            "oneOf": [
+              {
+                "title": "Celsius",
+                "enum": [
+                  "C"
+                ]
+              },
+              {
+                "title": "Fahrenheit",
+                "enum": [
+                  "F"
+                ]
+              }
+            ]
+          },
+          "ref_express_freezer": {
+            "title": "Express Freezer / Ice Plus",
+            "type": "boolean"
+          },
+          "ref_express_fridge": {
+            "title": "Express Fridge",
+            "type": "boolean"
+          },
+          "ref_eco_friendly": {
+            "title": "Eco Friendly",
+            "type": "boolean"
+          },
+          "air_fast_mode": {
+            "title": "Air Fast Mode",
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "layout": [
+    "auth_mode",
+    {
+      "type": "flex",
+      "flex-flow": "row wrap",
+      "items": [
+        "username",
+        {
+          "key": "password",
+          "type": "password"
+        }
+      ]
+    },
+    "refresh_token",
+    {
+      "type": "flex",
+      "flex-flow": "row wrap",
+      "items": [
+        "country",
+        "language"
+      ]
+    },
+    "thinq1",
+    "refresh_interval",
+    {
+      "key": "devices",
+      "type": "tabarray",
+      "title": "{{ value.name || 'new device' }}",
+      "items": [
+        "devices[].name",
+        "devices[].id",
+        "devices[].type",
+        "devices[].serial_number",
+        {
+          "key": "devices[]",
+          "type": "fieldset",
+          "title": "{{ value.title }}",
+          "items": [
+            {
+              "type": "fieldset",
+              "title": "Air purifier specific settings",
+              "description": "Configure air purifier device settings.",
+              "expandable": true,
+              "expanded": false,
+              "items": [
+                "devices[].air_fast_mode"
+              ],
+              "condition": {
+                "functionBody": "return model.devices && model.devices[arrayIndices] && ['AIR_PURIFIER'].includes(model.devices[arrayIndices].type);"
+              }
+            },
+            {
+              "type": "fieldset",
+              "title": "Washer / Dryer specific settings",
+              "description": "Configure washer/dryer device settings.",
+              "expandable": true,
+              "expanded": false,
+              "items": [
+                "devices[].washer_trigger",
+                "devices[].washer_tub_clean",
+                "devices[].washer_door_lock"
+              ],
+              "condition": {
+                "functionBody": "return model.devices && model.devices[arrayIndices] && ['WASHER','WASHER_NEW', 'WASH_TOWER', 'DRYER', 'WASH_TOWER_2'].includes(model.devices[arrayIndices].type);"
+              }
+            },
+            {
+              "type": "fieldset",
+              "title": "Air conditioner specific settings",
+              "description": "Configure AC device settings.",
+              "expandable": true,
+              "expanded": false,
+              "items": [
+                "devices[].ac_air_quality",
+                "devices[].ac_mode",
+                "devices[].ac_swing_mode",
+                "devices[].ac_temperature_sensor",
+                "devices[].ac_humidity_sensor",
+                "devices[].ac_fan_control",
+                "devices[].ac_jet_control",
+                "devices[].ac_energy_save",
+                "devices[].ac_air_clean",
+                "devices[].ac_temperature_unit",
+                {
+                  "key": "devices[].ac_buttons",
+                  "title": "AC buttons",
+                  "description": "Configure AC buttons. For details check README.",
+                  "type": "array",
+                  "buttonText": "Add button",
+                  "items": [
+                    "devices[].ac_buttons[].name",
+                    "devices[].ac_buttons[].op_mode"
+                  ]
+                }
+              ],
+              "condition": {
+                "functionBody": "return model.devices && model.devices[arrayIndices] && ['AC'].includes(model.devices[arrayIndices].type);"
+              }
+            },
+            {
+              "type": "fieldset",
+              "title": "Refrigerator specific settings",
+              "description": "Configure refrigerator device settings.",
+              "expandable": true,
+              "expanded": false,
+              "items": [
+                "devices[].ref_express_freezer",
+                "devices[].ref_express_fridge",
+                "devices[].ref_eco_friendly"
+              ],
+              "condition": {
+                "functionBody": "return model.devices && model.devices[arrayIndices] && ['REFRIGERATOR'].includes(model.devices[arrayIndices].type);"
+              }
+            },
+            {
+              "type": "fieldset",
+              "title": "Dishwasher specific settings",
+              "description": "Configure dishwasher device settings.",
+              "expandable": true,
+              "expanded": false,
+              "items": [
+                "devices[].dishwasher_trigger"
+              ],
+              "condition": {
+                "functionBody": "return model.devices && model.devices[arrayIndices] && ['DISHWASHER'].includes(model.devices[arrayIndices].type);"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+<link rel="stylesheet" href="styles.css">
+
+<div class="lg-header">
+  <h2>LG ThinQ</h2>
+  <p class="text-muted">Homebridge plugin to integrate LG ThinQ devices into HomeKit</p>
+</div>
+
+<!-- Step 1: Login -->
+<div id="step-login" class="step-container">
+  <div class="step-header">
+    <div class="step-number">1</div>
+    <h3 class="step-title">Connect Your LG Account</h3>
+  </div>
+
+  <!-- Active session notice -->
+  <div id="active-session-notice" class="alert alert-info hidden">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <strong>Active Session Detected</strong>
+        <p class="mb-0 small">Using the existing session from Homebridge</p>
+      </div>
+      <button id="btn-new-login" class="btn btn-sm btn-outline-primary">Login with Different Account</button>
+    </div>
+  </div>
+
+  <div class="card" id="login-form">
+    <div class="card-body">
+      <div class="mb-3">
+        <label for="country_language" class="form-label">Country / Language</label>
+        <select class="form-select" id="country_language"></select>
+        <div class="form-text">Select your LG account region</div>
+      </div>
+
+      <div class="mb-3">
+        <label for="username" class="form-label">Email</label>
+        <input type="text" class="form-control" id="username" placeholder="your@email.com">
+        <div class="form-text">Enter your LG ThinQ account email</div>
+      </div>
+
+      <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <input type="password" class="form-control" id="password" placeholder="••••••••">
+      </div>
+
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="rememberCredentials">
+        <label class="form-check-label" for="rememberCredentials">Remember username & password (optional)</label>
+      </div>
+
+      <button id="btn-login" class="btn btn-primary">
+        <span class="spinner-border spinner-border-sm hidden" id="login-spinner"></span>
+        Connect Account
+      </button>
+
+      <div class="wiki-link">
+        <p class="small text-muted mb-2">Using OAuth login (Facebook, Amazon, etc.)?</p>
+        <a href="https://github.com/mp-consulting/homebridge-lg-thinq/wiki/Plugin-Authorization-Setting" target="_blank">
+          View Plugin Authorization Wiki
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Step 2: Devices -->
+<div id="step-devices" class="step-container hidden">
+  <div class="step-header">
+    <div class="step-number">2</div>
+    <h3 class="step-title">Your Devices</h3>
+  </div>
+
+  <div class="alert alert-success mb-3" id="success-alert">
+    <strong>Success!</strong> Your LG account is connected. Found <span id="device-count">0</span> devices.
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>Discovered Devices</span>
+      <button id="btn-refresh" class="btn btn-sm btn-outline-secondary">
+        <span class="spinner-border spinner-border-sm hidden" id="refresh-spinner"></span>
+        Refresh
+      </button>
+    </div>
+    <div class="card-body device-list" id="device-list">
+      <!-- Devices will be populated here -->
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">Plugin Settings</div>
+    <div class="card-body">
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="thinq1">
+        <label class="form-check-label" for="thinq1">Enable ThinQ1 support (older devices)</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button id="btn-save" class="btn btn-success">Save Configuration</button>
+    <button id="btn-schema" class="btn btn-outline-primary">Advanced Settings</button>
+  </div>
+</div>
+
+<!-- Step 3: Complete -->
+<div id="step-complete" class="step-container hidden">
+  <div class="step-header">
+    <div class="step-number" style="background-color: var(--bs-success);">✓</div>
+    <h3 class="step-title">Configuration Complete</h3>
+  </div>
+
+  <div class="alert alert-success">
+    <strong>All done!</strong> Your LG ThinQ plugin is configured. Please restart Homebridge to apply the changes.
+  </div>
+
+  <button id="btn-restart" class="btn btn-warning">Restart Homebridge</button>
+</div>
+
+<script src="js/countries.js"></script>
+<script src="js/app.js"></script>

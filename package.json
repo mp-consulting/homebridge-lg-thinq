@@ -1,0 +1,83 @@
+{
+  "displayName": "Homebridge LG ThinQ",
+  "name": "@mp-consulting/homebridge-lg-thinq",
+  "version": "1.0.0",
+  "description": "A Homebridge plugin for controlling/monitoring LG ThinQ devices via LG ThinQ platform.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mp-consulting/homebridge-lg-thinq.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mp-consulting/homebridge-lg-thinq/issues"
+  },
+  "engines": {
+    "homebridge": "^1.8.0 || ^2.0.0-beta.0",
+    "node": "^20.18.0 || ^22.10.0 || ^24.0.0"
+  },
+  "main": "dist/index.js",
+  "bin": {
+    "thinq": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "rimraf ./dist && tsc",
+    "lint": "eslint . --max-warnings=0",
+    "prepublishOnly": "npm run lint && npm run build",
+    "watch": "npm run build && npm link && nodemon",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "homebridge-plugin",
+    "homekit",
+    "lg",
+    "lg-thinq"
+  ],
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@jest/globals": "^30.2.0",
+    "@types/aws-iot-device-sdk": "^2.2.9",
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^25.0.3",
+    "@types/node-forge": "^1.3.14",
+    "@types/node-persist": "^3.1.8",
+    "@types/qs": "^6.14.0",
+    "eslint": "^9.39.2",
+    "eslint-plugin-jest": "^29.9.0",
+    "homebridge": "^1.8.5",
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.11",
+    "rimraf": "^6.1.2",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.50.1"
+  },
+  "homepage": "https://github.com/mp-consulting/homebridge-lg-thinq#readme",
+  "author": "Mickael Palma",
+  "dependencies": {
+    "@homebridge/plugin-ui-utils": "^2.1.2",
+    "aws-iot-device-sdk": "^2.2.16",
+    "axios": "^1.13.2",
+    "axios-retry": "^4.5.0",
+    "commander": "^14.0.2",
+    "homebridge-config-ui-x": "^5.12.1-beta.5",
+    "homebridge-lib": "^7.2.0",
+    "luxon": "^3.7.2",
+    "node-forge": "^1.3.3",
+    "node-persist": "^4.0.4",
+    "qs": "^6.14.0"
+  },
+  "overrides": {
+    "glob": "^13.0.0",
+    "help-me": {
+      "glob": "^13.0.0"
+    },
+    "test-exclude": "^7.0.1"
+  }
+}
