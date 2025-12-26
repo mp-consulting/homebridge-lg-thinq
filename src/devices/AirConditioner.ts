@@ -646,8 +646,6 @@ export default class AirConditioner extends BaseDevice {
    * the current operating mode of the device.
    */
   public updateAccessoryTemperatureCharacteristics() {
-    this.logger.warn(`updateAccessoryTemperatureCharacteristics: ${this.accessory.context.device.snapshot['airState.tempState.target']}`);
-    this.logger.warn(`updateAccessoryTemperatureCharacteristics: ${this.Status.targetTemperature}`);
     const temperature = this.Status.targetTemperature;
     const currentState = this.service.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState).value;
 
@@ -656,19 +654,24 @@ export default class AirConditioner extends BaseDevice {
 
     if (currentState === this.platform.Characteristic.CurrentHeaterCoolerState.HEATING) {
       const heatingChar = this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature);
+      const currentValue = heatingChar.value as number;
       const minValue = (heatingChar.props.minValue ?? HOMEKIT_TEMP_MIN);
       const maxValue = (heatingChar.props.maxValue ?? 38);
       const clampedTemp = Math.max(minValue, Math.min(maxValue, temperature));
-      this.service.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, clampedTemp);
+      if (currentValue !== clampedTemp) {
+        this.service.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, clampedTemp);
+      }
     }
 
     if (currentState === this.platform.Characteristic.CurrentHeaterCoolerState.COOLING) {
-      this.logger.debug('Setting cooling target temperature = ', temperature);
       const coolingChar = this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature);
+      const currentValue = coolingChar.value as number;
       const minValue = (coolingChar.props.minValue ?? HOMEKIT_TEMP_MIN);
       const maxValue = (coolingChar.props.maxValue ?? 38);
       const clampedTemp = Math.max(minValue, Math.min(maxValue, temperature));
-      this.service.updateCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature, clampedTemp);
+      if (currentValue !== clampedTemp) {
+        this.service.updateCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature, clampedTemp);
+      }
     }
   }
 

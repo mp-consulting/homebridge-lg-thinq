@@ -1,9 +1,17 @@
 {
   "displayName": "Homebridge LG ThinQ",
   "name": "@mp-consulting/homebridge-lg-thinq",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A Homebridge plugin for controlling/monitoring LG ThinQ devices via LG ThinQ platform.",
-  "license": "Apache-2.0",
+  "author": {
+    "name": "Mickael Palma",
+    "email": "mickael.palma@mac.com"
+  },
+  "license": "MIT",
+  "funding": {
+    "type": "paypal",
+    "url": "https://paypal.me/mickaelpalma"
+  },
   "type": "module",
   "publishConfig": {
     "access": "public"
@@ -60,7 +68,6 @@
     "typescript-eslint": "^8.50.1"
   },
   "homepage": "https://github.com/mp-consulting/homebridge-lg-thinq#readme",
-  "author": "Mickael Palma",
   "dependencies": {
     "@homebridge/plugin-ui-utils": "^2.1.2",
     "aws-iot-device-sdk": "^2.2.16",

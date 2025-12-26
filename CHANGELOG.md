@@ -1,5 +1,18 @@
 # Change Log
 
+## v1.0.3
+
+### Improvements
+
+* Reduce log noise for Air Conditioner temperature updates
+  - Remove debug warn statements from temperature characteristic updates
+  - Only update characteristics when value actually changes
+
+### Changes
+
+* Update package metadata (author, funding, license)
+* Change license to MIT
+
 ## v1.0.2
 
 ### Bug fixes
