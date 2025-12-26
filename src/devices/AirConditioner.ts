@@ -309,13 +309,19 @@ export default class AirConditioner extends BaseDevice {
     this.service.getCharacteristic(Characteristic.CurrentTemperature);
 
 
+    // HomeKit minimum for threshold temperatures is 10°C
+    const HOMEKIT_TEMP_MIN = 10;
+    const HOMEKIT_TEMP_MAX = 38;
+
     const targetHeatTemperature = status.getTemperatureRange(status.getTemperatureRangeForHeating());
 
     if (targetHeatTemperature) {
+      const heatMin = status.convertTemperatureCelsiusFromLGToHomekit(targetHeatTemperature.min);
+      const heatMax = status.convertTemperatureCelsiusFromLGToHomekit(targetHeatTemperature.max);
       this.service.getCharacteristic(Characteristic.HeatingThresholdTemperature)
         .setProps({
-          minValue: status.convertTemperatureCelsiusFromLGToHomekit(targetHeatTemperature.min),
-          maxValue: status.convertTemperatureCelsiusFromLGToHomekit(targetHeatTemperature.max),
+          minValue: Math.max(HOMEKIT_TEMP_MIN, heatMin || HOMEKIT_TEMP_MIN),
+          maxValue: Math.min(HOMEKIT_TEMP_MAX, heatMax || HOMEKIT_TEMP_MAX),
           minStep: targetHeatTemperature.step || 0.01,
         });
     }
@@ -323,10 +329,12 @@ export default class AirConditioner extends BaseDevice {
     const targetCoolTemperature = status.getTemperatureRange(status.getTemperatureRangeForCooling());
 
     if (targetCoolTemperature) {
+      const coolMin = status.convertTemperatureCelsiusFromLGToHomekit(targetCoolTemperature.min);
+      const coolMax = status.convertTemperatureCelsiusFromLGToHomekit(targetCoolTemperature.max);
       this.service.getCharacteristic(Characteristic.CoolingThresholdTemperature)
         .setProps({
-          minValue: status.convertTemperatureCelsiusFromLGToHomekit(targetCoolTemperature.min),
-          maxValue: status.convertTemperatureCelsiusFromLGToHomekit(targetCoolTemperature.max),
+          minValue: Math.max(HOMEKIT_TEMP_MIN, coolMin || HOMEKIT_TEMP_MIN),
+          maxValue: Math.min(HOMEKIT_TEMP_MAX, coolMax || HOMEKIT_TEMP_MAX),
           minStep: targetCoolTemperature.step || 0.01,
         });
     }
@@ -642,13 +650,25 @@ export default class AirConditioner extends BaseDevice {
     this.logger.warn(`updateAccessoryTemperatureCharacteristics: ${this.Status.targetTemperature}`);
     const temperature = this.Status.targetTemperature;
     const currentState = this.service.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState).value;
+
+    // HomeKit minimum for threshold temperatures is 10°C
+    const HOMEKIT_TEMP_MIN = 10;
+
     if (currentState === this.platform.Characteristic.CurrentHeaterCoolerState.HEATING) {
-      this.service.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, temperature);
+      const heatingChar = this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature);
+      const minValue = (heatingChar.props.minValue ?? HOMEKIT_TEMP_MIN);
+      const maxValue = (heatingChar.props.maxValue ?? 38);
+      const clampedTemp = Math.max(minValue, Math.min(maxValue, temperature));
+      this.service.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, clampedTemp);
     }
 
     if (currentState === this.platform.Characteristic.CurrentHeaterCoolerState.COOLING) {
       this.logger.debug('Setting cooling target temperature = ', temperature);
-      this.service.updateCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature, temperature);
+      const coolingChar = this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature);
+      const minValue = (coolingChar.props.minValue ?? HOMEKIT_TEMP_MIN);
+      const maxValue = (coolingChar.props.maxValue ?? 38);
+      const clampedTemp = Math.max(minValue, Math.min(maxValue, temperature));
+      this.service.updateCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature, clampedTemp);
     }
   }
 
