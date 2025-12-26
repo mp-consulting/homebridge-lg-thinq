@@ -2096,8 +2096,9 @@ export default class Microwave extends BaseDevice {
       if (this.ovenTempControl.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity).value !== this.localHumidity) {
         this.ovenTempControl.updateCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity, this.localHumidity);
       }
-      if (this.microwavePower.getCharacteristic(this.platform.Characteristic.On).value !== safeParseInt(this.Status.data?.LWOMGTPowerLevel) > 0 ? true : false) {
-        this.microwavePower.updateCharacteristic(this.platform.Characteristic.On, safeParseInt(this.Status.data?.LWOMGTPowerLevel) > 0 ? true : false);
+      const isPowerOn = safeParseInt(this.Status.data?.LWOMGTPowerLevel) > 0;
+      if (this.microwavePower.getCharacteristic(this.platform.Characteristic.On).value !== isPowerOn) {
+        this.microwavePower.updateCharacteristic(this.platform.Characteristic.On, isPowerOn);
       }
 
       if (this.microwavePower.getCharacteristic(this.platform.Characteristic.Brightness).value !== safeParseInt(this.Status.data?.LWOMGTPowerLevel)) {
