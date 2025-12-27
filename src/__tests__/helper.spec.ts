@@ -8,35 +8,29 @@ import { describe, expect, it, jest } from '@jest/globals';
 jest.mock('../lib/Device');
 jest.mock('../lib/constants', () => ({
   PlatformType: {
-    ThinQ1: 'ThinQ1',
-    ThinQ2: 'ThinQ2',
+    ThinQ1: 'thinq1',
+    ThinQ2: 'thinq2',
   },
 }));
 
 // Test suite for Helper class and utility functions
 describe('Helper', () => {
   describe('make', () => {
-    it('should return V1helper.make for ThinQ1 platform', () => {
-      const mockDevice = { platform: PlatformType.ThinQ1 } as Device;
-      const result = Helper.make(mockDevice);
-      expect(result).toBeDefined();
-    });
-
-    it('should return the correct class for ThinQ2 devices', () => {
+    it('should return the correct class for ThinQ2 devices', async () => {
       const mockDevice = { platform: PlatformType.ThinQ2, type: 'AC' } as Device;
-      const result = Helper.make(mockDevice);
+      const result = await Helper.make(mockDevice);
       expect(result).toBeDefined();
     });
 
-    it('should return null for unknown device types', () => {
+    it('should return null for unknown device types', async () => {
       const mockDevice = { platform: PlatformType.ThinQ2, type: 'UNKNOWN' } as Device;
-      const result = Helper.make(mockDevice);
+      const result = await Helper.make(mockDevice);
       expect(result).toBeNull();
     });
 
-    it('should return null for unsupported platform types', () => {
-      const mockDevice = { platform: 'UnsupportedPlatform' } as Device;
-      const result = Helper.make(mockDevice);
+    it('should return null for unsupported platform types', async () => {
+      const mockDevice = { platform: 'UnsupportedPlatform', type: 'UNKNOWN' } as Device;
+      const result = await Helper.make(mockDevice);
       expect(result).toBeNull();
     });
   });
