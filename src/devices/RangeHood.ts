@@ -3,6 +3,7 @@ import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
 import { Device } from '../lib/Device.js';
 import { ValueType } from '../lib/DeviceModel.js';
+import { BaseStatus } from '../status/BaseStatus.js';
 
 export default class RangeHood extends BaseDevice {
   protected serviceHood: Service;
@@ -108,18 +109,36 @@ export default class RangeHood extends BaseDevice {
   public updateAccessoryCharacteristic(device: Device) {
     super.updateAccessoryCharacteristic(device);
 
-    const hoodState = device.snapshot.hoodState;
-    const isVentOn = hoodState.ventSet === device.deviceModel.lookupMonitorName('VentSet', '@CP_ENABLE_W');
-    const isLampOn = hoodState.lampSet === device.deviceModel.lookupMonitorName('LampSet', '@CP_ENABLE_W');
-
     const {
       Characteristic,
     } = this.platform;
 
-    this.serviceHood.updateCharacteristic(Characteristic.On, isVentOn);
-    this.serviceHood.updateCharacteristic(Characteristic.RotationSpeed, hoodState.ventLevel);
+    this.serviceHood.updateCharacteristic(Characteristic.On, this.Status.isVentOn);
+    this.serviceHood.updateCharacteristic(Characteristic.RotationSpeed, this.Status.ventLevel);
 
-    this.serviceLight.updateCharacteristic(Characteristic.On, isLampOn);
-    this.serviceLight.updateCharacteristic(Characteristic.Brightness, hoodState.lampLevel);
+    this.serviceLight.updateCharacteristic(Characteristic.On, this.Status.isLampOn);
+    this.serviceLight.updateCharacteristic(Characteristic.Brightness, this.Status.lampLevel);
+  }
+
+  public get Status() {
+    return this.getStatus(RangeHoodStatus, 'hoodState');
+  }
+}
+
+export class RangeHoodStatus extends BaseStatus {
+  public get isVentOn() {
+    return this.getString('ventSet') === this.deviceModel.lookupMonitorName('VentSet', '@CP_ENABLE_W');
+  }
+
+  public get isLampOn() {
+    return this.getString('lampSet') === this.deviceModel.lookupMonitorName('LampSet', '@CP_ENABLE_W');
+  }
+
+  public get ventLevel() {
+    return this.getInt('ventLevel');
+  }
+
+  public get lampLevel() {
+    return this.getInt('lampLevel');
   }
 }
