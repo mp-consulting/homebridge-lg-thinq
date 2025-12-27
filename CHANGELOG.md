@@ -1,5 +1,25 @@
 # Change Log
 
+## v1.0.5
+
+### Refactoring
+
+* Add DeviceRegistry for centralized device metadata
+  - Single source of truth for device types, categories, and config defaults
+  - Lazy loading of device implementations for better performance
+  - Simplifies adding new device types
+
+* Enhance BaseDevice with caching and control helpers
+  - Add Status caching with version-based invalidation
+  - Add getStatus() helper for typed, cached status objects
+  - Add setDeviceControl() for simplified device control
+  - Config getter now merges DeviceRegistry defaults automatically
+
+* Remove redundant code from device implementations
+  - Remove config override boilerplate from 6 devices
+  - Use getStatus() helper in WasherDryer, Refrigerator, Dishwasher, Microwave
+  - Reduces code duplication by ~50 lines
+
 ## v1.0.4
 
 ### Features
