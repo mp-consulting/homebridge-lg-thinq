@@ -9,7 +9,7 @@ import {
   NotConnectedErrorCodes,
 } from '../errors/index.js';
 import axiosRetry from 'axios-retry';
-import { REQUEST_TIMEOUT_MS, RETRY_DELAY_MS } from './constants.js';
+import { REQUEST_TIMEOUT_MS, RETRY_DELAY_MS } from '../lib/constants.js';
 
 const MAX_REQUESTS_COUNT = 1;
 const INTERVAL_MS = 10;

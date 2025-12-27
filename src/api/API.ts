@@ -1,4 +1,4 @@
-import * as constants from './constants.js';
+import * as constants from '../lib/constants.js';
 import { URL } from 'url';
 
 import { Session } from './Session.js';

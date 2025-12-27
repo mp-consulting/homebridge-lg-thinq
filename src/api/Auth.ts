@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import qs from 'qs';
 import { URL } from 'url';
 import { AuthenticationError, ManualProcessNeededErrorCode, TokenError } from '../errors/index.js';
-import * as constants from './constants.js';
+import * as constants from '../lib/constants.js';
 import { Gateway } from './Gateway.js';
 import { requestClient } from './request.js';
 import { Session } from './Session.js';

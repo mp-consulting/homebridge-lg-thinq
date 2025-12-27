@@ -1,9 +1,9 @@
 import { Logger, PlatformConfig } from 'homebridge';
 import { API } from './API.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
-import { Device, DeviceData } from './Device.js';
-import { DeviceType, PlatformType, MQTT_RETRY_DELAY_MS, REQUEST_TIMEOUT_MS } from './constants.js';
-import { DeviceModel, ValueType } from './DeviceModel.js';
+import { Device, DeviceData } from '../lib/Device.js';
+import { DeviceType, PlatformType, MQTT_RETRY_DELAY_MS, REQUEST_TIMEOUT_MS } from '../lib/constants.js';
+import { DeviceModel, ValueType } from '../lib/DeviceModel.js';
 import { randomUUID } from 'crypto';
 import * as Path from 'path';
 import * as FS from 'fs';
@@ -13,7 +13,7 @@ import { MonitorError, NotConnectedError } from '../errors/index.js';
 import { PLUGIN_NAME } from '../settings.js';
 import { device as awsIotDevice } from 'aws-iot-device-sdk';
 import { URL } from 'url';
-import Persist from './Persist.js';
+import Persist from '../lib/Persist.js';
 
 export type WorkId = string;
 

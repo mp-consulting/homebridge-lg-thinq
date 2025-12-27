@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
-import { ThinQ } from '../lib/ThinQ.js';
+import { ThinQ } from '../api/ThinQ.js';
 import { ValueType } from '../lib/DeviceModel.js';
 
 describe('ThinQ.deviceControl coercion', () => {

@@ -2,7 +2,7 @@ import { API, DynamicPlatformPlugin, PlatformAccessory, PlatformConfig, Service,
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 import { Helper } from './helper.js';
-import { ThinQ } from './lib/ThinQ.js';
+import { ThinQ } from './api/ThinQ.js';
 import { EventEmitter } from 'events';
 import { PlatformType, DEVICE_DISCOVERY_DELAY_MS, ONE_SECOND_MS } from './lib/constants.js';
 import { ManualProcessNeeded, NotConnectedError } from './errors/index.js';
