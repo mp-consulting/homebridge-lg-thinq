@@ -2,6 +2,16 @@ import { DeviceModel } from '../lib/DeviceModel.js';
 import { safeParseInt } from '../helper.js';
 
 /**
+ * Air quality data structure used by air purifiers and air conditioners
+ */
+export interface AirQualityData {
+  isOn: boolean;
+  overall: number;
+  PM2: number;
+  PM10: number;
+}
+
+/**
  * Base class for device status implementations.
  * Provides common utility methods for parsing and accessing device data.
  */
@@ -39,6 +49,27 @@ export abstract class BaseStatus {
   }
 
   /**
+   * Get a boolean value with more flexible parsing.
+   * Handles 1, true, '1', 'true' as true values.
+   */
+  protected getBoolean(key: string, defaultValue = false): boolean {
+    const value = this._data?.[key];
+    if (value === undefined || value === null) {
+      return defaultValue;
+    }
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'number') {
+      return value !== 0;
+    }
+    if (typeof value === 'string') {
+      return value === '1' || value.toLowerCase() === 'true';
+    }
+    return !!value;
+  }
+
+  /**
    * Check if a key exists in the data.
    */
   protected has(key: string): boolean {
@@ -46,10 +77,54 @@ export abstract class BaseStatus {
   }
 
   /**
+   * Check if a property exists in the snapshot data.
+   * Alias for has() for compatibility.
+   */
+  protected hasProperty(key: string): boolean {
+    return this.has(key);
+  }
+
+  /**
    * Get the raw value for a key.
    */
   protected getRaw<T>(key: string): T | undefined {
     return this._data?.[key] as T | undefined;
+  }
+
+  /**
+   * Get air quality data if available.
+   * Common pattern used by air purifiers and air conditioners.
+   */
+  protected getAirQualityData(isPowerOn: boolean): AirQualityData | null {
+    const hasAirQuality = this.has('airState.quality.overall')
+      || this.has('airState.quality.PM2')
+      || this.has('airState.quality.PM10');
+
+    if (!hasAirQuality) {
+      return null;
+    }
+
+    return {
+      isOn: isPowerOn || this.getBoolean('airState.quality.sensorMon'),
+      overall: this.getInt('airState.quality.overall'),
+      PM2: this.getInt('airState.quality.PM2'),
+      PM10: this.getInt('airState.quality.PM10'),
+    };
+  }
+
+  /**
+   * Calculate filter life percentage.
+   * @param currentTimeKey - Key for current usage time
+   * @param maxTimeKey - Key for max filter time
+   * @returns Percentage of filter life remaining (0-100)
+   */
+  protected getFilterLifePercent(currentTimeKey: string, maxTimeKey: string): number {
+    const maxTime = this.getInt(maxTimeKey);
+    if (!maxTime) {
+      return 0;
+    }
+    const currentTime = this.getInt(currentTimeKey);
+    return Math.round((1 - (currentTime / maxTime)) * 100);
   }
 }
 

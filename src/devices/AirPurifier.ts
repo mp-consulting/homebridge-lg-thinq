@@ -4,7 +4,7 @@ import { Device } from '../lib/Device.js';
 import { AccessoryContext, BaseDevice } from '../baseDevice.js';
 import { normalizeNumber, safeParseInt } from '../helper.js';
 import { FILTER_CHANGE_THRESHOLD_PERCENT, AIR_PURIFIER_NORMAL_MODE, AIR_PURIFIER_AUTO_MODE } from '../lib/constants.js';
-import { BaseStatus } from '../lib/BaseStatus.js';
+import { BaseStatus } from '../status/BaseStatus.js';
 
 export enum RotateSpeed {
   LOW = 2,
