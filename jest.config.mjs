@@ -1,4 +1,3 @@
-import type { Config } from 'jest';
 import { createDefaultEsmPreset } from 'ts-jest';
 
 const presetConfig = createDefaultEsmPreset({
@@ -8,6 +7,7 @@ const presetConfig = createDefaultEsmPreset({
   },
 });
 
+/** @type {import('jest').Config} */
 export default {
   ...presetConfig,
   collectCoverageFrom: ['src/**'],
@@ -36,4 +36,4 @@ export default {
       statements: 10,
     },
   },
-} satisfies Config;
+};

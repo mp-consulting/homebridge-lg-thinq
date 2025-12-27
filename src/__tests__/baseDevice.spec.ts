@@ -6,7 +6,7 @@ import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 
 // Mock dependencies
 jest.mock('../platform.js');
-jest.mock('../lib/Device');
+jest.mock('../models/Device');
 
 // Test suite for BaseDevice class
 describe('BaseDevice', () => {

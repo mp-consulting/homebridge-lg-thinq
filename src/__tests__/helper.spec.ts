@@ -5,7 +5,7 @@ import { PlatformType } from '../lib/constants.js';
 import { describe, expect, it, jest } from '@jest/globals';
 
 // Mock dependencies
-jest.mock('../lib/Device');
+jest.mock('../models/Device');
 jest.mock('../lib/constants', () => ({
   PlatformType: {
     ThinQ1: 'thinq1',
