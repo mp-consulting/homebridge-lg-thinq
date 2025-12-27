@@ -1,5 +1,16 @@
 # Change Log
 
+## v1.0.10
+
+### Bug fixes
+
+* Fix homebridge-ui not appearing after folder restructuring
+  - Update server.js import paths to use new api/ folder location
+
+* Fix Jest config for ESM compatibility with Jest 30
+  - Rename jest.config.ts to jest.config.mjs
+  - Update test mock paths after folder restructuring
+
 ## v1.0.9
 
 ### Refactoring
