@@ -1,5 +1,5 @@
-import { API } from '../dist/lib/API.js';
-import { Auth } from '../dist/lib/Auth.js';
+import { API } from '../dist/api/API.js';
+import { Auth } from '../dist/api/Auth.js';
 import { HomebridgePluginUiServer, RequestError } from '@homebridge/plugin-ui-utils';
 import { DeviceType } from '../dist/lib/constants.js';
 
