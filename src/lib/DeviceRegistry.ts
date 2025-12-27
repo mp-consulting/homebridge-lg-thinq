@@ -180,7 +180,7 @@ export class DeviceRegistry {
       v2Implementation: () => import('../devices/Microwave.js').then(m => m.default),
       v1Implementation: () => null,
       homeKitCategory: 9, // Thermostat (air heater)
-      snapshotKey: 'microwaveState',
+      snapshotKey: 'ovenState',
     }],
     ['OVEN', {
       type: 'OVEN',

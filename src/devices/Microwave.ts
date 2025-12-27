@@ -2164,7 +2164,7 @@ export default class Microwave extends BaseDevice {
   }
 
   public get Status() {
-    return this.getStatus(MicrowaveStatus, 'ovenState');
+    return this.getStatus(MicrowaveStatus);
   }
 
 }

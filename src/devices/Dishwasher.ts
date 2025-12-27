@@ -593,7 +593,7 @@ export default class Dishwasher extends BaseDevice {
   }
 
   public get Status() {
-    return this.getStatus(DishwasherStatus, 'dishwasher');
+    return this.getStatus(DishwasherStatus);
   }
 
   nameLengthCheck(newName: string) {

@@ -81,7 +81,7 @@ export default class Refrigerator extends BaseDevice {
   }
 
   public get Status() {
-    return this.getStatus(RefrigeratorStatus, 'refState');
+    return this.getStatus(RefrigeratorStatus);
   }
 
   /**
