@@ -47,7 +47,7 @@ export class DeviceRegistry {
     ['AIR_PURIFIER', {
       type: 'AIR_PURIFIER',
       v2Implementation: () => import('../devices/AirPurifier.js').then(m => m.default),
-      v1Implementation: () => import('../v1/devices/AirPurifier.js').then(m => m.default),
+      v1Implementation: () => import('../devices-v1/devices/AirPurifier.js').then(m => m.default),
       homeKitCategory: Categories.AIR_PURIFIER,
       snapshotKey: 'airState',
       configDefaults: { air_fast_mode: false },
@@ -55,7 +55,7 @@ export class DeviceRegistry {
     ['REFRIGERATOR', {
       type: 'REFRIGERATOR',
       v2Implementation: () => import('../devices/Refrigerator.js').then(m => m.default),
-      v1Implementation: () => import('../v1/devices/Refrigerator.js').then(m => m.default),
+      v1Implementation: () => import('../devices-v1/devices/Refrigerator.js').then(m => m.default),
       homeKitCategory: Categories.OTHER,
       snapshotKey: 'refState',
       configDefaults: {
@@ -67,7 +67,7 @@ export class DeviceRegistry {
     ['WASHER', {
       type: 'WASHER',
       v2Implementation: () => import('../devices/WasherDryer.js').then(m => m.default),
-      v1Implementation: () => import('../v1/devices/Washer.js').then(m => m.default),
+      v1Implementation: () => import('../devices-v1/devices/Washer.js').then(m => m.default),
       homeKitCategory: Categories.OTHER,
       snapshotKey: 'washerDryer',
       configDefaults: {
@@ -115,7 +115,7 @@ export class DeviceRegistry {
     ['DRYER', {
       type: 'DRYER',
       v2Implementation: () => import('../devices/WasherDryer.js').then(m => m.default),
-      v1Implementation: () => import('../v1/devices/Washer.js').then(m => m.default),
+      v1Implementation: () => import('../devices-v1/devices/Washer.js').then(m => m.default),
       homeKitCategory: Categories.OTHER,
       snapshotKey: 'washerDryer',
       configDefaults: {
@@ -142,7 +142,7 @@ export class DeviceRegistry {
     ['AC', {
       type: 'AC',
       v2Implementation: () => import('../devices/AirConditioner.js').then(m => m.default),
-      v1Implementation: () => import('../v1/devices/AC.js').then(m => m.default),
+      v1Implementation: () => import('../devices-v1/devices/AC.js').then(m => m.default),
       homeKitCategory: Categories.AIR_CONDITIONER,
       snapshotKey: 'airState',
       configDefaults: {
@@ -171,7 +171,7 @@ export class DeviceRegistry {
     ['HOOD', {
       type: 'HOOD',
       v2Implementation: () => import('../devices/RangeHood.js').then(m => m.default),
-      v1Implementation: () => import('../v1/devices/RangeHood.js').then(m => m.default),
+      v1Implementation: () => import('../devices-v1/devices/RangeHood.js').then(m => m.default),
       homeKitCategory: Categories.OTHER,
       snapshotKey: 'hoodState',
     }],

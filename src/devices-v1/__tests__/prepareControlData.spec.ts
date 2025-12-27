@@ -1,5 +1,5 @@
 import { describe, test, expect } from '@jest/globals';
-import Helper from '../../v1/helper.js';
+import Helper from '../../devices-v1/helper.js';
 import { Device } from '../../models/Device.js';
 
 describe('v1 Helper.prepareControlData', () => {

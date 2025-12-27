@@ -8,7 +8,7 @@ import { randomUUID } from 'crypto';
 import * as Path from 'path';
 import * as FS from 'fs';
 import forge from 'node-forge';
-import Helper from '../v1/helper.js';
+import Helper from '../devices-v1/helper.js';
 import { MonitorError, NotConnectedError } from '../errors/index.js';
 import { PLUGIN_NAME } from '../settings.js';
 import { device as awsIotDevice } from 'aws-iot-device-sdk';
