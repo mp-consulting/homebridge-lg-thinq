@@ -2,26 +2,16 @@ import { Device } from '../lib/Device.js';
 import { DeviceModel } from '../lib/DeviceModel.js';
 import AirState from './transforms/AirState.js';
 import WasherDryer from './transforms/WasherDryer.js';
-import { Washer, AC, Refrigerator, AirPurifier, RangeHood } from './devices/index.js';
 import RefState from './transforms/RefState.js';
 import { randomUUID } from 'crypto';
 import AirPurifierState from './transforms/AirPurifierState.js';
 import HoodState from './transforms/HoodState.js';
 
+/**
+ * Helper class for ThinQ1 devices
+ * Note: Device instantiation is now handled by DeviceRegistry
+ */
 export default class Helper {
-  public static make(device: Device) {
-    switch (device.type) {
-    case 'DRYER':
-    case 'WASHER': return Washer;
-    case 'AC': return AC;
-    case 'REFRIGERATOR': return Refrigerator;
-    case 'AIR_PURIFIER': return AirPurifier;
-    case 'HOOD': return RangeHood;
-    }
-
-    return null;
-  }
-
   /**
    * transform device from thinq1 to thinq2 compatible (with snapshot data)
    */
