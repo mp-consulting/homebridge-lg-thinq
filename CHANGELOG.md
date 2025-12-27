@@ -1,5 +1,16 @@
 # Change Log
 
+## v1.0.9
+
+### Refactoring
+
+* Reorganize folder structure for better maintainability
+  - Move API files (ThinQ, API, Auth, Session, Gateway) to src/api/
+  - Move model files (Device, DeviceModel, DeviceRegistry) to src/models/
+  - Rename v1/ to devices-v1/ for clarity
+  - Consolidate BaseStatus classes into src/status/
+  - Remove duplicate test files
+
 ## v1.0.8
 
 ### Refactoring
