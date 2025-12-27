@@ -70,12 +70,13 @@ export class BaseDevice extends EventEmitter {
    * The cache is invalidated when updateAccessoryCharacteristic is called.
    *
    * @param StatusClass - The Status class constructor
-   * @param snapshotKey - Key to access snapshot data (e.g., 'washerDryer', 'airState')
+   * @param snapshotKey - Optional key to access snapshot data. If not provided,
+   *                      auto-resolves from DeviceRegistry based on device type.
    * @returns Cached Status instance
    */
   protected getStatus<T>(
     StatusClass: new (data: any, model: any) => T,
-    snapshotKey: string,
+    snapshotKey?: string,
   ): T {
     const device = this.accessory.context.device;
     const currentVersion = this._lastSnapshotVersion;
@@ -85,8 +86,9 @@ export class BaseDevice extends EventEmitter {
       return this._cachedStatus as T;
     }
 
-    // Create new status instance
-    const snapshotData = device.snapshot?.[snapshotKey];
+    // Auto-resolve snapshot key from DeviceRegistry if not provided
+    const key = snapshotKey ?? DeviceRegistry.getSnapshotKey(device.type);
+    const snapshotData = key ? device.snapshot?.[key] : device.snapshot;
     this._cachedStatus = new StatusClass(snapshotData, device.deviceModel);
 
     return this._cachedStatus as T;
@@ -153,6 +155,40 @@ export class BaseDevice extends EventEmitter {
       this.logger.error(`[${device.name}] Failed to set ${dataKey}:`, error);
       throw new this.platform.api.hap.HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
+  }
+
+  /**
+   * Set a boolean control value on the device.
+   * Converts boolean/number to 0/1 and updates snapshot on success.
+   *
+   * @param dataKey - The data key path (e.g., 'airState.operation')
+   * @param value - The boolean value (true/false, 1/0)
+   * @param onSuccess - Optional callback after successful control
+   * @returns Promise<boolean> indicating success
+   */
+  protected async setBooleanControl(
+    dataKey: string,
+    value: boolean | number,
+    onSuccess?: () => void,
+  ): Promise<boolean> {
+    const boolValue = typeof value === 'boolean' ? (value ? 1 : 0) : (value ? 1 : 0);
+    const result = await this.setDeviceControl(dataKey, boolValue);
+    if (result && onSuccess) {
+      onSuccess();
+    }
+    return result;
+  }
+
+  /**
+   * Check if the device model supports a specific feature.
+   * Uses DeviceRegistry to look up model-specific feature support.
+   *
+   * @param featureName - Feature name (e.g., 'jetMode', 'quietMode')
+   * @returns true if the model supports the feature
+   */
+  protected hasModelFeature(featureName: string): boolean {
+    const device = this.accessory.context.device;
+    return DeviceRegistry.hasModelFeature(device.type, featureName, device.model);
   }
 
   /**
