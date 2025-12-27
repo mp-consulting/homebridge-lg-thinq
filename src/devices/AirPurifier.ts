@@ -2,8 +2,9 @@ import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
 import { Device } from '../lib/Device.js';
 import { AccessoryContext, BaseDevice } from '../baseDevice.js';
-import { safeParseInt, normalizeNumber } from '../helper.js';
+import { normalizeNumber, safeParseInt } from '../helper.js';
 import { FILTER_CHANGE_THRESHOLD_PERCENT } from '../lib/constants.js';
+import { BaseStatus } from '../lib/BaseStatus.js';
 
 export enum RotateSpeed {
   LOW = 2,
@@ -88,7 +89,7 @@ export default class AirPurifier extends BaseDevice {
   }
 
   public get Status() {
-    return new AirPurifierStatus(this.accessory.context.device.snapshot);
+    return this.getStatus(AirPurifierStatus);
   }
 
   async setAirFastActive(value: CharacteristicValue) {
@@ -271,65 +272,60 @@ export default class AirPurifier extends BaseDevice {
   }
 }
 
-export class AirPurifierStatus {
-  constructor(protected data: any) {
-  }
-
+export class AirPurifierStatus extends BaseStatus {
   public get isPowerOn() {
-    return this.data['airState.operation'] as boolean;
+    return this.getBoolean('airState.operation');
   }
 
   public get isLightOn() {
-    if ('airState.lightingState.signal' in this.data) {
-      return this.isPowerOn && this.data['airState.lightingState.signal'] as boolean;
+    if (this.hasProperty('airState.lightingState.signal')) {
+      return this.isPowerOn && this.getBoolean('airState.lightingState.signal');
     }
-
-    if ('airState.lightingState.displayControl' in this.data) {
-      return this.isPowerOn && this.data['airState.lightingState.displayControl'] as boolean;
+    if (this.hasProperty('airState.lightingState.displayControl')) {
+      return this.isPowerOn && this.getBoolean('airState.lightingState.displayControl');
     }
-
     return false;
   }
 
   public get isSwing() {
-    return (this.data['airState.circulate.rotate'] || 0) as boolean;
+    return this.getBoolean('airState.circulate.rotate');
   }
 
   public get airQuality() {
-    return {
-      isOn: this.isPowerOn || !!this.data['airState.quality.sensorMon'],
-      overall: safeParseInt(this.data['airState.quality.overall']),
-      PM2: safeParseInt(this.data['airState.quality.PM2']),
-      PM10: safeParseInt(this.data['airState.quality.PM10']),
+    return this.getAirQualityData(this.isPowerOn) ?? {
+      isOn: false,
+      overall: 0,
+      PM2: 0,
+      PM10: 0,
     };
   }
 
   public get rotationSpeed() {
-    const index = Object.keys(RotateSpeed).indexOf(safeParseInt(this.data['airState.windStrength']).toString());
+    const windStrength = this.getInt('airState.windStrength');
+    const index = Object.keys(RotateSpeed).indexOf(windStrength.toString());
     return index !== -1 ? index + 1 : Object.keys(RotateSpeed).length / 2;
   }
 
   public get isNormalMode() {
-    return this.data['airState.opMode'] === 14;
+    return this.getInt('airState.opMode') === 14;
   }
 
   public get filterUsedTimePercent() {
-    if (!this.filterMaxTime) {
-      return 0;
-    }
-
-    return Math.round((1 - (this.filterUseTime / this.filterMaxTime)) * 100);
+    return this.getFilterLifePercent(
+      'airState.filterMngStates.useTime',
+      'airState.filterMngStates.maxTime',
+    );
   }
 
   public get filterMaxTime() {
-    return this.data['airState.filterMngStates.maxTime'] || 0;
+    return this.getInt('airState.filterMngStates.maxTime');
   }
 
   public get filterUseTime() {
-    return this.data['airState.filterMngStates.useTime'] || 0;
+    return this.getInt('airState.filterMngStates.useTime');
   }
 
   public get isAirFastEnable() {
-    return this.data['airState.miscFuncState.airFast'] || 0;
+    return this.getBoolean('airState.miscFuncState.airFast');
   }
 }
