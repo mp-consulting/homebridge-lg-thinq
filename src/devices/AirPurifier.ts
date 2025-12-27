@@ -91,12 +91,6 @@ export default class AirPurifier extends BaseDevice {
     return new AirPurifierStatus(this.accessory.context.device.snapshot);
   }
 
-  public get config() {
-    return Object.assign({}, {
-      air_fast_mode: false,
-    }, super.config);
-  }
-
   async setAirFastActive(value: CharacteristicValue) {
     if (!this.Status.isPowerOn) {
       return;

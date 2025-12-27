@@ -146,8 +146,8 @@ export class DeviceRegistry {
         ac_jet_control: false,
         ac_temperature_unit: 'C',
         ac_buttons: [],
-        ac_air_clean: false,
-        ac_energy_save: false,
+        ac_air_clean: true,
+        ac_energy_save: true,
       },
     }],
     ['STYLER', {

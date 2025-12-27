@@ -94,15 +94,7 @@ export default class WasherDryer extends BaseDevice {
   }
 
   public get Status() {
-    return new WasherDryerStatus(this.accessory.context.device.snapshot?.washerDryer, this.accessory.context.device.deviceModel);
-  }
-
-  public get config() {
-    return Object.assign({}, {
-      washer_trigger: false,
-      washer_door_lock: false,
-      washer_tub_clean: false,
-    }, super.config);
+    return this.getStatus(WasherDryerStatus, 'washerDryer');
   }
 
   async setActive(value: CharacteristicValue) {

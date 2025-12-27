@@ -2164,13 +2164,7 @@ export default class Microwave extends BaseDevice {
   }
 
   public get Status() {
-    return new MicrowaveStatus(this.accessory.context.device.snapshot?.ovenState, this.accessory.context.device.deviceModel);
-  }
-
-  public get config() {
-    return Object.assign({}, {
-      oven_trigger: false,
-    }, super.config);
+    return this.getStatus(MicrowaveStatus, 'ovenState');
   }
 
 }

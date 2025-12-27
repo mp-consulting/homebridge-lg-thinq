@@ -80,16 +80,8 @@ export default class Refrigerator extends BaseDevice {
     );
   }
 
-  public get config() {
-    return Object.assign({}, {
-      ref_express_freezer: false,
-      ref_express_fridge: false,
-      ref_eco_friendly: false,
-    }, super.config);
-  }
-
   public get Status() {
-    return new RefrigeratorStatus(this.accessory.context.device.snapshot?.refState, this.accessory.context.device.deviceModel);
+    return this.getStatus(RefrigeratorStatus, 'refState');
   }
 
   /**

@@ -359,21 +359,7 @@ export default class AirConditioner extends BaseDevice {
 
 
   public get config(): Config {
-    return {
-      ac_swing_mode: 'BOTH',
-      ac_air_quality: false,
-      ac_mode: 'BOTH',
-      ac_temperature_sensor: false,
-      ac_humidity_sensor: false,
-      ac_led_control: false,
-      ac_fan_control: false,
-      ac_jet_control: false,
-      ac_temperature_unit: 'C',
-      ac_buttons: [],
-      ac_air_clean: true,
-      ac_energy_save: true,
-      ...super.config,
-    };
+    return super.config as Config;
   }
 
   public get Status() {

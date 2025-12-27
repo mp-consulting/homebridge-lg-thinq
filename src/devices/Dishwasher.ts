@@ -593,13 +593,7 @@ export default class Dishwasher extends BaseDevice {
   }
 
   public get Status() {
-    return new DishwasherStatus(this.accessory.context.device.snapshot?.dishwasher, this.accessory.context.device.deviceModel);
-  }
-
-  public get config() {
-    return Object.assign({}, {
-      dishwasher_trigger: false,
-    }, super.config);
+    return this.getStatus(DishwasherStatus, 'dishwasher');
   }
 
   nameLengthCheck(newName: string) {
