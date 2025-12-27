@@ -2,8 +2,9 @@ import { AccessoryContext, BaseDevice } from '../baseDevice.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory } from 'homebridge';
 import { Device } from '../lib/Device.js';
-import { safeParseInt, normalizeNumber } from '../helper.js';
+import { normalizeNumber, safeParseInt } from '../helper.js';
 import { FAN_SPEED_MIN, FAN_SPEED_MAX, HUMIDITY_MAX } from '../lib/constants.js';
+import { BaseStatus } from '../status/BaseStatus.js';
 
 enum RotateSpeed {
   LOW = FAN_SPEED_MIN,
@@ -178,23 +179,21 @@ export default class Dehumidifier extends BaseDevice {
   }
 
   public get Status() {
-    return new DehumidifierStatus(this.accessory.context.device.snapshot);
+    return this.getStatus(DehumidifierStatus);
   }
 }
 
-export class DehumidifierStatus {
-  constructor(protected data: any) {}
-
+export class DehumidifierStatus extends BaseStatus {
   public get isPowerOn() {
-    return this.data['airState.operation'] as boolean;
+    return this.getBool('airState.operation');
   }
 
   public get opMode() {
-    return this.data['airState.opMode'] as number;
+    return this.getInt('airState.opMode');
   }
 
   public get windStrength() {
-    return this.data['airState.windStrength'] as number;
+    return this.getInt('airState.windStrength');
   }
 
   public get isDehumidifying() {
@@ -202,19 +201,19 @@ export class DehumidifierStatus {
   }
 
   public get humidityCurrent() {
-    return this.data['airState.humidity.current'] || 0;
+    return this.getInt('airState.humidity.current');
   }
 
   public get humidityTarget() {
-    return this.data['airState.humidity.desired'] || 0;
+    return this.getInt('airState.humidity.desired');
   }
 
   public get rotationSpeed() {
-    const index = Object.keys(RotateSpeed).indexOf(safeParseInt(this.data['airState.windStrength']).toString());
+    const index = Object.keys(RotateSpeed).indexOf(this.windStrength.toString());
     return index !== -1 ? index + 1 : Object.keys(RotateSpeed).length / 2;
   }
 
   public get isWaterTankFull() {
-    return !!this.data['airState.notificationExt'];
+    return this.getBool('airState.notificationExt');
   }
 }
