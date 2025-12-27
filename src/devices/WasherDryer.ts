@@ -2,7 +2,7 @@ import { AccessoryContext, BaseDevice } from '../baseDevice.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
 import { Device } from '../lib/Device.js';
-import { PlatformType, WASHER_NOT_RUNNING_STATUS, ONE_DAY_IN_SECONDS, TEN_MINUTES_MS } from '../lib/constants.js';
+import { PlatformType, WASHER_NOT_RUNNING_STATUS, ONE_DAY_IN_SECONDS, TEN_MINUTES_MS, TCL_MAINTENANCE_THRESHOLD } from '../lib/constants.js';
 import { DeviceModel } from '../lib/DeviceModel.js';
 import { safeParseInt } from '../utils/normalize.js';
 import { toSeconds } from '../utils/normalize.js';
@@ -166,7 +166,7 @@ export default class WasherDryer extends BaseDevice {
 
     if ('TCLCount' in washerDryer && this.serviceTubCleanMaintenance) {
       // detect if tub clean coach counter is reached
-      if (this.Status.TCLCount >= 30) {
+      if (this.Status.TCLCount >= TCL_MAINTENANCE_THRESHOLD) {
         this.serviceTubCleanMaintenance.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_DETECTED);
       } else {
         // reset tub clean coach trigger flag
@@ -218,6 +218,6 @@ export class WasherDryerStatus {
   }
 
   public get TCLCount() {
-    return Math.min(safeParseInt(this.data?.TCLCount), 30);
+    return Math.min(safeParseInt(this.data?.TCLCount), TCL_MAINTENANCE_THRESHOLD);
   }
 }

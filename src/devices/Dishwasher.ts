@@ -4,7 +4,24 @@ import { Logger, PlatformAccessory, Service } from 'homebridge';
 import { Device } from '../lib/Device.js';
 import { normalizeNumber } from '../helper.js';
 import { WasherDryerStatus } from './WasherDryer.js';
-import { SIX_HOURS_IN_SECONDS, TEN_MINUTES_MS, ONE_HOUR_IN_SECONDS, SIX_MINUTES_MS, DISHWASHER_STANDBY_INTERVAL_MS } from '../lib/constants.js';
+import {
+  SIX_HOURS_IN_SECONDS,
+  TEN_MINUTES_MS,
+  ONE_HOUR_IN_SECONDS,
+  SIX_MINUTES_MS,
+  DISHWASHER_STANDBY_INTERVAL_MS,
+  DRY_CYCLE_THRESHOLD,
+  TCL_MAINTENANCE_THRESHOLD,
+  RINSE_LEVEL_EMPTY,
+  RINSE_LEVEL_HALF,
+  RINSE_LEVEL_FULL,
+  MAX_NAME_LENGTH,
+  TRUNCATED_NAME_LENGTH,
+  ISO_TIME_START_INDEX,
+  ISO_TIME_LENGTH,
+  INPUT_ID_MIN,
+  INPUT_ID_MAX,
+} from '../lib/constants.js';
 
 export default class Dishwasher extends BaseDevice {
   public isRunning = false;
@@ -95,8 +112,8 @@ export default class Dishwasher extends BaseDevice {
           this.logger.error('Dishwasher ActiveIdentifier is not a number');
           return;
         }
-        if (vNum > 7 || vNum < 1) {
-          this.inputID = 1;
+        if (vNum > INPUT_ID_MAX || vNum < INPUT_ID_MIN) {
+          this.inputID = INPUT_ID_MIN;
         } else {
           this.inputID = vNum;
         }
@@ -313,7 +330,7 @@ export default class Dishwasher extends BaseDevice {
 
         }
         this.inputName = 'Finished Cycle ' + this.finishedTime;
-        if (this.Status.data.extraDry.includes('ON') && this.dryCounter > 3 && this.Status.remainDuration === ONE_HOUR_IN_SECONDS) {
+        if (this.Status.data.extraDry.includes('ON') && this.dryCounter > DRY_CYCLE_THRESHOLD && this.Status.remainDuration === ONE_HOUR_IN_SECONDS) {
           this.inputName += ' (Waiting For Extra Dry Step)';
         }
       } else if (this.Status.data.state.includes('FAIL')) {
@@ -350,7 +367,7 @@ export default class Dishwasher extends BaseDevice {
           this.inputName += '. Step: Rinsing';
         } else if (this.Status.data.process.includes('DRYING')) {
           this.inputName += '. Step: Drying';
-          if (this.Status.data.extraDry.includes('ON') && this.dryCounter > 3) {
+          if (this.Status.data.extraDry.includes('ON') && this.dryCounter > DRY_CYCLE_THRESHOLD) {
             this.inputName += ' (Extra)';
           }
         } else if (this.Status.data.process.includes('NIGHT')) {
@@ -363,7 +380,7 @@ export default class Dishwasher extends BaseDevice {
           const courseTime = new Date(0);
           this.delayTime = this.Status.data.reserveTimeHour * 60 * 60 + this.Status.data.reserveTimeMinute * 60;
           courseTime.setSeconds(this.delayTime);
-          let delayTimeString = courseTime.toISOString().substr(11, 8);
+          let delayTimeString = courseTime.toISOString().substr(ISO_TIME_START_INDEX, ISO_TIME_LENGTH);
 
           if (delayTimeString.startsWith('0')) {
             delayTimeString = delayTimeString.substring(1);
@@ -457,7 +474,7 @@ export default class Dishwasher extends BaseDevice {
     this.showTime = true;
     const courseTime = new Date(0);
     courseTime.setSeconds(this.Status.remainDuration);
-    let courseTimeString = courseTime.toISOString().substr(11, 8);
+    let courseTimeString = courseTime.toISOString().substr(ISO_TIME_START_INDEX, ISO_TIME_LENGTH);
 
     if (courseTimeString.startsWith('0')) {
       courseTimeString = courseTimeString.substring(1);
@@ -554,10 +571,10 @@ export default class Dishwasher extends BaseDevice {
     super.updateAccessoryCharacteristic(device);
     const { Characteristic } = this.platform;
     if (this.Status.remainDuration !== this.serviceDishwasher.getCharacteristic(Characteristic.RemainingDuration).value) {
-      if (this.Status.data.extraDry.includes('ON') && this.Status.remainDuration === 3600) {
+      if (this.Status.data.extraDry.includes('ON') && this.Status.remainDuration === ONE_HOUR_IN_SECONDS) {
         this.dryCounter += 1;
       }
-      if (this.dryCounter <= 3) {
+      if (this.dryCounter <= DRY_CYCLE_THRESHOLD) {
         this.serviceDishwasher.updateCharacteristic(Characteristic.RemainingDuration, this.Status.remainDuration);
       }
     }
@@ -597,8 +614,8 @@ export default class Dishwasher extends BaseDevice {
   }
 
   nameLengthCheck(newName: string) {
-    if (newName.length >= 64) {
-      newName = newName.slice(0, 60) + '...';
+    if (newName.length >= MAX_NAME_LENGTH) {
+      newName = newName.slice(0, TRUNCATED_NAME_LENGTH) + '...';
     }
     return newName;
   }
@@ -607,18 +624,18 @@ export default class Dishwasher extends BaseDevice {
     if (this.Status.data.state.includes('RUNNING')) {
       this.rinseLevel = this.Status.data.rinseLevel || 'LEVEL_1';
     }
-    let rinseLevelPercent = 100;
+    let rinseLevelPercent = RINSE_LEVEL_FULL;
     let rinseLevelStatus = 0;
     if (this.rinseLevel === 'LEVEL_0') {
-      rinseLevelPercent = 0;
+      rinseLevelPercent = RINSE_LEVEL_EMPTY;
       rinseLevelStatus = 1;
       this.inputNameRinse = 'Rinse Aid Level is Running Low';
       this.inputID = 3;
     } else if (this.rinseLevel === 'LEVEL_1') {
-      rinseLevelPercent = 50;
+      rinseLevelPercent = RINSE_LEVEL_HALF;
       this.inputNameRinse = 'Rinse Aid Level is at 50% Capacity';
     } else if (this.rinseLevel === 'LEVEL_2') {
-      rinseLevelPercent = 100;
+      rinseLevelPercent = RINSE_LEVEL_FULL;
       this.inputNameRinse = 'Rinse Aid Level is at 100% Capacity';
     } else {
       this.inputNameRinse = 'Rinse Aid Level is Normal';
@@ -628,7 +645,7 @@ export default class Dishwasher extends BaseDevice {
     this.serviceDoorOpened.updateCharacteristic(this.platform.Characteristic.BatteryLevel, rinseLevelPercent);
     this.serviceDoorOpened.updateCharacteristic(this.platform.Characteristic.StatusLowBattery, rinseLevelStatus);
 
-    if (this.Status.data.tclCount > 30) {
+    if (this.Status.data.tclCount > TCL_MAINTENANCE_THRESHOLD) {
       this.inputID = 7;
       this.inputNameMachine = 'Machine Cleaning Cycle is Needed Soon';
       if (this.dishwasherCleanliness.getCharacteristic(this.platform.Characteristic.ConfiguredName).value !== this.inputNameMachine) {
@@ -705,11 +722,11 @@ export default class Dishwasher extends BaseDevice {
     if (this.Status.data.state.includes('RUNNING')) {
       levelPercent = this.Status.data.rinseLevel || 'LEVEL_1';
     }
-    let rinseLevelPercent = 100;
+    let rinseLevelPercent = RINSE_LEVEL_FULL;
     if (levelPercent === 'LEVEL_0') {
-      rinseLevelPercent = 0;
+      rinseLevelPercent = RINSE_LEVEL_EMPTY;
     } else if (levelPercent === 'LEVEL_1') {
-      rinseLevelPercent = 50;
+      rinseLevelPercent = RINSE_LEVEL_HALF;
     }
     return rinseLevelPercent;
   }

@@ -3,10 +3,11 @@ import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory } from 'homebridge';
 import { Device } from '../lib/Device.js';
 import { safeParseInt, normalizeNumber } from '../helper.js';
+import { FAN_SPEED_MIN, FAN_SPEED_MAX, HUMIDITY_MAX } from '../lib/constants.js';
 
 enum RotateSpeed {
-  LOW = 2,
-  HIGH = 6,
+  LOW = FAN_SPEED_MIN,
+  HIGH = FAN_SPEED_MAX,
 }
 
 /**
@@ -60,7 +61,7 @@ export default class Dehumidifier extends BaseDevice {
       .onSet(this.setHumidityThreshold.bind(this))
       .setProps({
         minValue: 0,
-        maxValue: 100,
+        maxValue: HUMIDITY_MAX,
         minStep: 1,
       });
 
@@ -170,7 +171,7 @@ export default class Dehumidifier extends BaseDevice {
     const currentState = this.Status.isPowerOn ? (this.Status.isDehumidifying ? DEHUMIDIFYING : IDLE) : INACTIVE;
     this.serviceDehumidifier.updateCharacteristic(Characteristic.CurrentHumidifierDehumidifierState, currentState);
     this.serviceDehumidifier.updateCharacteristic(Characteristic.RotationSpeed, this.Status.rotationSpeed);
-    this.serviceDehumidifier.updateCharacteristic(Characteristic.WaterLevel, this.Status.isWaterTankFull ? 100 : 0);
+    this.serviceDehumidifier.updateCharacteristic(Characteristic.WaterLevel, this.Status.isWaterTankFull ? HUMIDITY_MAX : 0);
 
     this.serviceHumiditySensor.updateCharacteristic(Characteristic.CurrentRelativeHumidity, this.Status.humidityCurrent);
     this.serviceHumiditySensor.updateCharacteristic(Characteristic.StatusActive, this.Status.isPowerOn);

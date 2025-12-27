@@ -111,3 +111,87 @@ export const DISHWASHER_STANDBY_INTERVAL_MS = 902500; // ~15 minutes
  * Filter maintenance thresholds
  */
 export const FILTER_CHANGE_THRESHOLD_PERCENT = 95;
+
+/**
+ * HomeKit temperature limits (in Celsius)
+ * HomeKit enforces specific min/max values for temperature characteristics
+ */
+export const HOMEKIT_TEMP_MIN = 10;
+export const HOMEKIT_TEMP_MAX = 38;
+
+/**
+ * Air Purifier operation modes
+ */
+export const AIR_PURIFIER_NORMAL_MODE = 14;
+export const AIR_PURIFIER_AUTO_MODE = 16;
+
+/**
+ * Air Conditioner operation mode (used when opMode is undefined)
+ */
+export const UNDEFINED_OP_MODE = -1;
+
+/**
+ * Washer/Dryer maintenance thresholds
+ */
+export const TCL_MAINTENANCE_THRESHOLD = 30;
+export const DRY_CYCLE_THRESHOLD = 3;
+
+/**
+ * Fan speed ranges
+ */
+export const FAN_SPEED_MIN = 2;
+export const FAN_SPEED_MAX = 6;
+
+/**
+ * Humidity limits
+ */
+export const HUMIDITY_MAX = 100;
+export const HUMIDITY_DIVISOR = 10;
+
+/**
+ * Energy consumption divisor
+ */
+export const ENERGY_CONSUMPTION_DIVISOR = 100;
+
+/**
+ * Rinse level percentages (for dishwasher)
+ */
+export const RINSE_LEVEL_EMPTY = 0;
+export const RINSE_LEVEL_HALF = 50;
+export const RINSE_LEVEL_FULL = 100;
+
+/**
+ * Lamp levels (for range hood and similar devices)
+ */
+export const LAMP_OFF = 0;
+export const LAMP_LOW = 1;
+export const LAMP_HIGH = 2;
+
+/**
+ * Name length limits (for HomeKit)
+ */
+export const MAX_NAME_LENGTH = 64;
+export const TRUNCATED_NAME_LENGTH = 60;
+
+/**
+ * Time string extraction indices (ISO format)
+ */
+export const ISO_TIME_START_INDEX = 11;
+export const ISO_TIME_LENGTH = 8;
+
+/**
+ * Swing mode values
+ */
+export const SWING_MODE_ON = '100';
+export const SWING_MODE_OFF = '0';
+
+/**
+ * Monitor timeout value for AC devices
+ */
+export const AC_MONITOR_TIMEOUT_VALUE = '70';
+
+/**
+ * Input identifier bounds (for TV service)
+ */
+export const INPUT_ID_MIN = 1;
+export const INPUT_ID_MAX = 7;

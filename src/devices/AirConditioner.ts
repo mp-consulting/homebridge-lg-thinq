@@ -4,7 +4,22 @@ import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebri
 import { Device } from '../lib/Device.js';
 import { EnumValue, RangeValue, ValueType } from '../lib/DeviceModel.js';
 import { cToF, fToC, normalizeBoolean, normalizeNumber, safeParseInt } from '../helper.js';
-import { AC_MODEL_FEATURES, ONE_MINUTE_MS, HUNDRED_MS } from '../lib/constants.js';
+import {
+  AC_MODEL_FEATURES,
+  ONE_MINUTE_MS,
+  HUNDRED_MS,
+  HOMEKIT_TEMP_MIN,
+  HOMEKIT_TEMP_MAX,
+  UNDEFINED_OP_MODE,
+  FAN_SPEED_MIN,
+  FAN_SPEED_MAX,
+  HUMIDITY_MAX,
+  HUMIDITY_DIVISOR,
+  ENERGY_CONSUMPTION_DIVISOR,
+  SWING_MODE_ON,
+  SWING_MODE_OFF,
+  AC_MONITOR_TIMEOUT_VALUE,
+} from '../lib/constants.js';
 
 export enum ACModelType {
   AWHP = 'AWHP',
@@ -178,7 +193,7 @@ export default class AirConditioner extends BaseDevice {
           try {
             await this.platform.ThinQ?.deviceControl(device.id, {
               dataKey: 'airState.mon.timeout',
-              dataValue: '70',
+              dataValue: AC_MONITOR_TIMEOUT_VALUE,
             }, 'Set', 'allEventEnable', 'control');
           } catch (error) {
             this.logger.debug('Error sending monitor timeout command:', error);
@@ -308,10 +323,6 @@ export default class AirConditioner extends BaseDevice {
 
     this.service.getCharacteristic(Characteristic.CurrentTemperature);
 
-
-    // HomeKit minimum for threshold temperatures is 10°C
-    const HOMEKIT_TEMP_MIN = 10;
-    const HOMEKIT_TEMP_MAX = 38;
 
     const targetHeatTemperature = status.getTemperatureRange(status.getTemperatureRangeForHeating());
 
@@ -598,7 +609,7 @@ export default class AirConditioner extends BaseDevice {
         this.platform.Characteristic.CurrentHeaterCoolerState.HEATING);
       this.service.updateCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState,
         this.platform.Characteristic.TargetHeaterCoolerState.HEAT);
-    } else if ([OpMode.AUTO, -1].includes(this.Status.opMode)) {
+    } else if ([OpMode.AUTO, UNDEFINED_OP_MODE].includes(this.Status.opMode)) {
       // auto mode, detect based on current & target temperature
       if (this.Status.currentTemperature < this.Status.targetTemperature) {
         this.service.updateCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState,
@@ -635,14 +646,11 @@ export default class AirConditioner extends BaseDevice {
     const temperature = this.Status.targetTemperature;
     const currentState = this.service.getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState).value;
 
-    // HomeKit minimum for threshold temperatures is 10°C
-    const HOMEKIT_TEMP_MIN = 10;
-
     if (currentState === this.platform.Characteristic.CurrentHeaterCoolerState.HEATING) {
       const heatingChar = this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature);
       const currentValue = heatingChar.value as number;
       const minValue = (heatingChar.props.minValue ?? HOMEKIT_TEMP_MIN);
-      const maxValue = (heatingChar.props.maxValue ?? 38);
+      const maxValue = (heatingChar.props.maxValue ?? HOMEKIT_TEMP_MAX);
       const clampedTemp = Math.max(minValue, Math.min(maxValue, temperature));
       if (currentValue !== clampedTemp) {
         this.service.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, clampedTemp);
@@ -653,7 +661,7 @@ export default class AirConditioner extends BaseDevice {
       const coolingChar = this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature);
       const currentValue = coolingChar.value as number;
       const minValue = (coolingChar.props.minValue ?? HOMEKIT_TEMP_MIN);
-      const maxValue = (coolingChar.props.maxValue ?? 38);
+      const maxValue = (coolingChar.props.maxValue ?? HOMEKIT_TEMP_MAX);
       const clampedTemp = Math.max(minValue, Math.min(maxValue, temperature));
       if (currentValue !== clampedTemp) {
         this.service.updateCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature, clampedTemp);
@@ -1034,7 +1042,7 @@ export default class AirConditioner extends BaseDevice {
       return;
     }
 
-    const swingValue = !!value as boolean ? '100' : '0';
+    const swingValue = !!value as boolean ? SWING_MODE_ON : SWING_MODE_OFF;
 
     const device: Device = this.accessory.context.device;
     try {
@@ -1232,8 +1240,8 @@ export class ACStatus {
 
   public get currentRelativeHumidity() {
     const humidity = safeParseInt(this.data['airState.humidity.current']);
-    if (humidity > 100) {
-      return humidity / 10;
+    if (humidity > HUMIDITY_MAX) {
+      return humidity / HUMIDITY_DIVISOR;
     }
 
     return humidity;
@@ -1269,10 +1277,8 @@ export class ACStatus {
       if (num === FAN_SPEED_AUTO) {
         return Math.round(Object.keys(FanSpeed).length / 2);
       }
-      const min = 2;
-      const max = 6;
-      if (num >= min && num <= max) {
-        return Math.round(((num - min) / (max - min)) * 100) || 1;
+      if (num >= FAN_SPEED_MIN && num <= FAN_SPEED_MAX) {
+        return Math.round(((num - FAN_SPEED_MIN) / (FAN_SPEED_MAX - FAN_SPEED_MIN)) * HUMIDITY_MAX) || 1;
       }
     }
     return Math.round(Object.keys(FanSpeed).length / 2);
@@ -1299,7 +1305,7 @@ export class ACStatus {
       return 0;
     }
 
-    return consumption / 100;
+    return consumption / ENERGY_CONSUMPTION_DIVISOR;
   }
 
   public get type() {

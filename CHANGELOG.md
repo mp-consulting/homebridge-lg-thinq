@@ -1,5 +1,15 @@
 # Change Log
 
+## v1.0.7
+
+### Refactoring
+
+* Replace magic numbers with named constants
+  - Add temperature, mode, threshold, and limit constants to lib/constants.ts
+  - Replace hardcoded values in AirConditioner, AirPurifier, Dishwasher,
+    WasherDryer, and Dehumidifier with named constants
+  - Improves code readability and maintainability
+
 ## v1.0.6
 
 ### Refactoring

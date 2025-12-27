@@ -3,7 +3,7 @@ import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebri
 import { Device } from '../lib/Device.js';
 import { AccessoryContext, BaseDevice } from '../baseDevice.js';
 import { normalizeNumber, safeParseInt } from '../helper.js';
-import { FILTER_CHANGE_THRESHOLD_PERCENT } from '../lib/constants.js';
+import { FILTER_CHANGE_THRESHOLD_PERCENT, AIR_PURIFIER_NORMAL_MODE, AIR_PURIFIER_AUTO_MODE } from '../lib/constants.js';
 import { BaseStatus } from '../lib/BaseStatus.js';
 
 export enum RotateSpeed {
@@ -145,7 +145,7 @@ export default class AirPurifier extends BaseDevice {
     try {
       await this.platform.ThinQ?.deviceControl(device.id, {
         dataKey: 'airState.opMode',
-        dataValue: value as boolean ? 16 : 14,
+        dataValue: value as boolean ? AIR_PURIFIER_AUTO_MODE : AIR_PURIFIER_NORMAL_MODE,
       });
     } catch (error) {
       this.logger.error('Error setting target air purifier state:', error);
@@ -307,7 +307,7 @@ export class AirPurifierStatus extends BaseStatus {
   }
 
   public get isNormalMode() {
-    return this.getInt('airState.opMode') === 14;
+    return this.getInt('airState.opMode') === AIR_PURIFIER_NORMAL_MODE;
   }
 
   public get filterUsedTimePercent() {
