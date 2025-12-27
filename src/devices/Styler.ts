@@ -2,9 +2,9 @@ import { AccessoryContext, BaseDevice } from '../baseDevice.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
 import { Device } from '../lib/Device.js';
-import { DeviceModel } from '../lib/DeviceModel.js';
 import { STYLER_NOT_RUNNING_STATUS, ONE_DAY_IN_SECONDS } from '../lib/constants.js';
 import { toSeconds } from '../utils/normalize.js';
+import { BaseStatus } from '../status/BaseStatus.js';
 
 /** @deprecated Use STYLER_NOT_RUNNING_STATUS from lib/constants.js instead */
 export const NOT_RUNNING_STATUS = STYLER_NOT_RUNNING_STATUS;
@@ -65,32 +65,30 @@ export default class Styler extends BaseDevice {
   }
 
   public get Status() {
-    return new StylerStatus(this.accessory.context.device.snapshot?.styler, this.accessory.context.device.deviceModel);
+    return this.getStatus(StylerStatus, 'styler');
   }
 }
 
-class StylerStatus {
-  constructor(protected data: any, protected deviceModel: DeviceModel) { }
-
+export class StylerStatus extends BaseStatus {
   public get isPowerOn() {
-    return !['POWEROFF', 'POWERFAIL'].includes(this.data?.state);
+    return !['POWEROFF', 'POWERFAIL'].includes(this.getString('state'));
   }
 
   public get isRemoteStartOn() {
-    return this.data.remoteStart === this.deviceModel.lookupMonitorName('remoteStart', '@CP_ON_EN_W');
+    return this.getString('remoteStart') === this.deviceModel.lookupMonitorName('remoteStart', '@CP_ON_EN_W');
   }
 
   public get isRunning() {
-    return this.isPowerOn && !NOT_RUNNING_STATUS.includes(this.data?.state);
+    return this.isPowerOn && !NOT_RUNNING_STATUS.includes(this.getString('state'));
   }
 
   public get isError() {
-    return this.data?.state === 'ERROR';
+    return this.getString('state') === 'ERROR';
   }
 
   public get remainDuration() {
-    const remainTimeHour = this.data?.remainTimeHour || 0,
-      remainTimeMinute = this.data?.remainTimeMinute || 0;
+    const remainTimeHour = this.getInt('remainTimeHour');
+    const remainTimeMinute = this.getInt('remainTimeMinute');
 
     let remainingDuration = 0;
     if (this.isRunning) {
