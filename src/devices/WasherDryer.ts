@@ -94,7 +94,7 @@ export default class WasherDryer extends BaseDevice {
   }
 
   public get Status() {
-    return this.getStatus(WasherDryerStatus, 'washerDryer');
+    return this.getStatus(WasherDryerStatus);
   }
 
   async setActive(value: CharacteristicValue) {
