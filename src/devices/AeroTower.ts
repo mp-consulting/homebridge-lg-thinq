@@ -52,37 +52,13 @@ export default class AeroTower extends AirPurifier {
       return;
     }
 
-    const device: Device = this.accessory.context.device;
     const isLightOn = value as boolean ? 1 : 0;
-    try {
-      const result = await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: 'airState.lightingState.displayControl',
-        dataValue: isLightOn,
-      });
-      if (result) {
-        device.data.snapshot['airState.lightingState.displayControl'] = isLightOn;
-        this.updateAccessoryCharacteristic(device);
-      }
-    } catch (error) {
-      this.logger.error('Error setting light state:', error);
-    }
+    await this.setDeviceControl('airState.lightingState.displayControl', isLightOn);
   }
 
   protected async setUVMode(value: CharacteristicValue) {
-    const device: Device = this.accessory.context.device;
     const uvModeValue = value ? 1 : 0;
-    try {
-      const result = await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: 'airState.miscFuncState.Uvnano',
-        dataValue: uvModeValue,
-      });
-      if (result) {
-        device.data.snapshot['airState.miscFuncState.Uvnano'] = uvModeValue;
-        this.updateAccessoryCharacteristic(device);
-      }
-    } catch (error) {
-      this.logger.error('Error setting UV mode:', error);
-    }
+    await this.setDeviceControl('airState.miscFuncState.Uvnano', uvModeValue);
   }
 
   protected async setLightBrightness(value: CharacteristicValue) {
@@ -90,23 +66,12 @@ export default class AeroTower extends AirPurifier {
     if (vNum === null) {
       return;
     }
-    const device: Device = this.accessory.context.device;
+
     const brightnessValue = vNum - 1;
     const values = [LightBrightness.LEVEL_1, LightBrightness.LEVEL_2, LightBrightness.LEVEL_3];
 
     if (typeof values[brightnessValue] !== 'undefined') {
-      try {
-        const result = await this.platform.ThinQ?.deviceControl(device.id, {
-          dataKey: 'airState.lightingState.displayControl',
-          dataValue: values[brightnessValue],
-        });
-        if (result) {
-          device.data.snapshot['airState.lightingState.displayControl'] = values[brightnessValue];
-          this.updateAccessoryCharacteristic(device);
-        }
-      } catch (error) {
-        this.logger.error('Error setting light brightness:', error);
-      }
+      await this.setDeviceControl('airState.lightingState.displayControl', values[brightnessValue]);
     }
   }
 
