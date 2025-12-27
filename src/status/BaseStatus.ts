@@ -7,22 +7,27 @@ import { safeParseInt } from '../helper.js';
  */
 export abstract class BaseStatus {
   constructor(
-    protected readonly data: Record<string, unknown> | undefined,
+    protected readonly _data: Record<string, unknown> | undefined,
     protected readonly deviceModel: DeviceModel,
   ) {}
+
+  /** Raw data access for subclasses that need direct field access */
+  public get data(): Record<string, any> {
+    return (this._data as Record<string, any>) || {};
+  }
 
   /**
    * Safely get an integer value from the data with a fallback.
    */
   protected getInt(key: string, fallback = 0): number {
-    return safeParseInt(this.data?.[key], fallback);
+    return safeParseInt(this._data?.[key], fallback);
   }
 
   /**
    * Safely get a string value from the data with a fallback.
    */
   protected getString(key: string, fallback = ''): string {
-    const value = this.data?.[key];
+    const value = this._data?.[key];
     return typeof value === 'string' ? value : fallback;
   }
 
@@ -30,21 +35,21 @@ export abstract class BaseStatus {
    * Safely get a boolean value from the data.
    */
   protected getBool(key: string): boolean {
-    return !!this.data?.[key];
+    return !!this._data?.[key];
   }
 
   /**
    * Check if a key exists in the data.
    */
   protected has(key: string): boolean {
-    return this.data !== undefined && key in this.data;
+    return this._data !== undefined && key in this._data;
   }
 
   /**
    * Get the raw value for a key.
    */
   protected getRaw<T>(key: string): T | undefined {
-    return this.data?.[key] as T | undefined;
+    return this._data?.[key] as T | undefined;
   }
 }
 

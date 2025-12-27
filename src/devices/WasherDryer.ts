@@ -3,9 +3,8 @@ import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
 import { Device } from '../lib/Device.js';
 import { PlatformType, WASHER_NOT_RUNNING_STATUS, ONE_DAY_IN_SECONDS, TEN_MINUTES_MS, TCL_MAINTENANCE_THRESHOLD } from '../lib/constants.js';
-import { DeviceModel } from '../lib/DeviceModel.js';
-import { safeParseInt } from '../utils/normalize.js';
 import { toSeconds } from '../utils/normalize.js';
+import { BaseStatus } from '../status/BaseStatus.js';
 
 /** @deprecated Use WASHER_NOT_RUNNING_STATUS from lib/constants.js instead */
 export const NOT_RUNNING_STATUS = WASHER_NOT_RUNNING_STATUS;
@@ -176,38 +175,35 @@ export default class WasherDryer extends BaseDevice {
   }
 }
 
-export class WasherDryerStatus {
-  constructor(public data: any, protected deviceModel: DeviceModel) {
-  }
-
+export class WasherDryerStatus extends BaseStatus {
   public get isPowerOn() {
-    return !['POWEROFF', 'POWERFAIL'].includes(this.data?.state);
+    return !['POWEROFF', 'POWERFAIL'].includes(this.getString('state'));
   }
 
   public get isRunning() {
-    return this.isPowerOn && !NOT_RUNNING_STATUS.includes(this.data?.state);
+    return this.isPowerOn && !NOT_RUNNING_STATUS.includes(this.getString('state'));
   }
 
   public get isError() {
-    return this.data?.state === 'ERROR';
+    return this.getString('state') === 'ERROR';
   }
 
   public get isRemoteStartEnable() {
-    return this.data.remoteStart === this.deviceModel.lookupMonitorName('remoteStart', '@CP_ON_EN_W');
+    return this.getString('remoteStart') === this.deviceModel.lookupMonitorName('remoteStart', '@CP_ON_EN_W');
   }
 
   public get isDoorLocked() {
     const current = this.deviceModel.lookupMonitorName('doorLock', '@CP_ON_EN_W');
     if (current === null) {
-      return this.data.doorLock === 'DOORLOCK_ON';
+      return this.getString('doorLock') === 'DOORLOCK_ON';
     }
 
-    return this.data.doorLock === current;
+    return this.getString('doorLock') === current;
   }
 
   public get remainDuration() {
-    const remainTimeHour = this.data?.remainTimeHour || 0,
-      remainTimeMinute = this.data?.remainTimeMinute || 0;
+    const remainTimeHour = this.getInt('remainTimeHour');
+    const remainTimeMinute = this.getInt('remainTimeMinute');
 
     let remainingDuration = 0;
     if (this.isRunning) {
@@ -218,6 +214,6 @@ export class WasherDryerStatus {
   }
 
   public get TCLCount() {
-    return Math.min(safeParseInt(this.data?.TCLCount), TCL_MAINTENANCE_THRESHOLD);
+    return Math.min(this.getInt('TCLCount'), TCL_MAINTENANCE_THRESHOLD);
   }
 }
