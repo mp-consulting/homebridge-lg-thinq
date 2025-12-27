@@ -85,7 +85,8 @@ export default class AirConditioner extends BaseDevice {
   protected quietModeModels = AC_MODEL_FEATURES.quietMode;
   /** @deprecated Use AC_MODEL_FEATURES from lib/constants.js instead */
   protected energySaveModeModels = AC_MODEL_FEATURES.energySaveMode;
-  protected airCleanModels = ['RAC_056905'];
+  /** @deprecated Use hasModelFeature('airClean', model) instead */
+  protected airCleanModels = AC_MODEL_FEATURES.airClean;
   protected currentTargetState = 2; // default target: COOL
 
   protected serviceLabelButtons: Service | undefined;
@@ -172,7 +173,7 @@ export default class AirConditioner extends BaseDevice {
         .onSet(this.setEnergySaveActive.bind(this));
     }
 
-    const enableAirClean = this.airCleanModels.includes(device.model) && this.config.ac_air_clean as boolean;
+    const enableAirClean = this.hasModelFeature('airClean') && this.config.ac_air_clean as boolean;
     this.serviceAirClean = this.ensureService(Switch, 'Air Purify', enableAirClean, 'Air Purify');
     if (this.serviceAirClean) {
       this.serviceAirClean.addOptionalCharacteristic(platform.Characteristic.ConfiguredName);
@@ -842,8 +843,7 @@ export default class AirConditioner extends BaseDevice {
   }
   public updateAccessoryairCleanModelsCharacteristic() {
     const device = this.accessory.context.device;
-    const model = device.model;
-    if (this.airCleanModels.includes(model) && this.config.ac_air_clean as boolean) {
+    if (this.hasModelFeature('airClean') && this.config.ac_air_clean as boolean) {
       this.serviceAirClean?.updateCharacteristic(this.platform.Characteristic.On, !!device.snapshot['airState.wMode.airClean']);
     }
   }

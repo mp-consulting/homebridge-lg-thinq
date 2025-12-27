@@ -75,6 +75,7 @@ export const AC_MODEL_FEATURES = {
   jetMode: ['RAC_056905'],
   quietMode: ['WINF_056905'],
   energySaveMode: ['WINF_056905', 'RAC_056905'],
+  airClean: ['RAC_056905'],
   /** Models that do NOT support the airState.mon.timeout command */
   noMonitorTimeout: ['RAC_056905'],
 };
