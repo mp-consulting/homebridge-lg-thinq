@@ -4,8 +4,8 @@
 import { AccessoryContext, BaseDevice } from '../baseDevice.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { Logger, Perms, PlatformAccessory, Service } from 'homebridge';
-import { DeviceModel } from '../lib/DeviceModel.js';
-import { Device } from '../lib/Device.js';
+import { DeviceModel } from '../models/DeviceModel.js';
+import { Device } from '../models/Device.js';
 import { normalizeBoolean, normalizeNumber } from '../helper.js';
 import { TWELVE_HOURS_IN_SECONDS, ONE_HOUR_IN_SECONDS, ONE_SECOND_MS, TEN_SECONDS_MS, TWO_MINUTES_MS, THIRTY_MINUTES_IN_SECONDS } from '../lib/constants.js';
 

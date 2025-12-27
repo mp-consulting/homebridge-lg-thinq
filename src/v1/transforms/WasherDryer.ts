@@ -1,4 +1,4 @@
-import { DeviceModel } from '../../lib/DeviceModel.js';
+import { DeviceModel } from '../../models/DeviceModel.js';
 import { lookupEnumIndex, loopupEnum, safeParseInt } from '../helper.js';
 
 export enum WasherState {

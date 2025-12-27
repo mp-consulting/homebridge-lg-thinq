@@ -1,7 +1,7 @@
 import { AccessoryContext, BaseDevice } from '../baseDevice.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { Logger, PlatformAccessory, Service } from 'homebridge';
-import { Device } from '../lib/Device.js';
+import { Device } from '../models/Device.js';
 import { normalizeNumber } from '../helper.js';
 import { WasherDryerStatus } from './WasherDryer.js';
 import {

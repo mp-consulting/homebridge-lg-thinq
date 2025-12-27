@@ -2,8 +2,8 @@
  * Special thank to carlosgamezvillegas (https://github.com/carlosgamezvillegas) for the initial work on the Microwave device.
  */
 import { AccessoryContext, BaseDevice } from '../baseDevice.js';
-import { Device } from '../lib/Device.js';
-import { DeviceModel } from '../lib/DeviceModel.js';
+import { Device } from '../models/Device.js';
+import { DeviceModel } from '../models/DeviceModel.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { Logger, PlatformAccessory, Service } from 'homebridge';
 import { normalizeBoolean, normalizeNumber, safeParseInt } from '../helper.js';

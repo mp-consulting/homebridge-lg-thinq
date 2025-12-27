@@ -1,6 +1,6 @@
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
-import { Device } from '../lib/Device.js';
+import { Device } from '../models/Device.js';
 import { AccessoryContext, BaseDevice } from '../baseDevice.js';
 import { normalizeNumber, safeParseInt } from '../helper.js';
 import { FILTER_CHANGE_THRESHOLD_PERCENT, AIR_PURIFIER_NORMAL_MODE, AIR_PURIFIER_AUTO_MODE } from '../lib/constants.js';

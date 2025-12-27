@@ -1,5 +1,5 @@
-import { Device } from '../lib/Device.js';
-import { DeviceModel } from '../lib/DeviceModel.js';
+import { Device } from '../models/Device.js';
+import { DeviceModel } from '../models/DeviceModel.js';
 import AirState from './transforms/AirState.js';
 import WasherDryer from './transforms/WasherDryer.js';
 import RefState from './transforms/RefState.js';

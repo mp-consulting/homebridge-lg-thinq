@@ -1,7 +1,7 @@
 import { AccessoryContext, BaseDevice } from '../baseDevice.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory } from 'homebridge';
-import { Device } from '../lib/Device.js';
+import { Device } from '../models/Device.js';
 import { normalizeNumber, safeParseInt } from '../helper.js';
 import { FAN_SPEED_MIN, FAN_SPEED_MAX, HUMIDITY_MAX } from '../lib/constants.js';
 import { BaseStatus } from '../status/BaseStatus.js';

@@ -1,7 +1,7 @@
 import { AccessoryContext, BaseDevice } from '../baseDevice.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
-import { Device } from '../lib/Device.js';
+import { Device } from '../models/Device.js';
 import { PlatformType, WASHER_NOT_RUNNING_STATUS, ONE_DAY_IN_SECONDS, TEN_MINUTES_MS, TCL_MAINTENANCE_THRESHOLD } from '../lib/constants.js';
 import { toSeconds } from '../utils/normalize.js';
 import { BaseStatus } from '../status/BaseStatus.js';

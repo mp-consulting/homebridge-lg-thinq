@@ -1,6 +1,6 @@
 import { Categories } from 'homebridge';
 import { Device } from './Device.js';
-import { PlatformType, AC_MODEL_FEATURES } from './constants.js';
+import { PlatformType, AC_MODEL_FEATURES } from '../lib/constants.js';
 import type { BaseDevice } from '../baseDevice.js';
 
 /**

@@ -1,5 +1,5 @@
-import { Device } from './lib/Device.js';
-import { DeviceRegistry } from './lib/DeviceRegistry.js';
+import { Device } from './models/Device.js';
+import { DeviceRegistry } from './models/DeviceRegistry.js';
 
 /**
  * Platform Accessory Helper

@@ -1,6 +1,6 @@
 import { describe, test, expect } from '@jest/globals';
 import Helper from '../../v1/helper.js';
-import { Device } from '../../lib/Device.js';
+import { Device } from '../../models/Device.js';
 
 describe('v1 Helper.prepareControlData', () => {
   test('builds BINARY(BYTE) payload with boolean -> numeric coercion', () => {

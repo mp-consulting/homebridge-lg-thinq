@@ -6,7 +6,7 @@ import { ThinQ } from './api/ThinQ.js';
 import { EventEmitter } from 'events';
 import { PlatformType, DEVICE_DISCOVERY_DELAY_MS, ONE_SECOND_MS } from './lib/constants.js';
 import { ManualProcessNeeded, NotConnectedError } from './errors/index.js';
-import { Device } from './lib/Device.js';
+import { Device } from './models/Device.js';
 import Characteristics from './characteristics/index.js';
 import { AccessoryContext, BaseDevice } from './baseDevice.js';
 

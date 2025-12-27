@@ -1,9 +1,9 @@
 import { Logger, PlatformConfig } from 'homebridge';
 import { API } from './API.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
-import { Device, DeviceData } from '../lib/Device.js';
+import { Device, DeviceData } from '../models/Device.js';
 import { DeviceType, PlatformType, MQTT_RETRY_DELAY_MS, REQUEST_TIMEOUT_MS } from '../lib/constants.js';
-import { DeviceModel, ValueType } from '../lib/DeviceModel.js';
+import { DeviceModel, ValueType } from '../models/DeviceModel.js';
 import { randomUUID } from 'crypto';
 import * as Path from 'path';
 import * as FS from 'fs';

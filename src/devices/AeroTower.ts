@@ -1,7 +1,7 @@
 import AirPurifier from './AirPurifier.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
-import { Device } from '../lib/Device.js';
+import { Device } from '../models/Device.js';
 import { AccessoryContext } from '../baseDevice.js';
 import { normalizeNumber } from '../helper.js';
 

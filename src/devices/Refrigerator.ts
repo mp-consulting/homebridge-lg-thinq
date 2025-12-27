@@ -1,8 +1,8 @@
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
-import { Device } from '../lib/Device.js';
+import { Device } from '../models/Device.js';
 import { AccessoryContext, BaseDevice } from '../baseDevice.js';
-import { DeviceModel } from '../lib/DeviceModel.js';
+import { DeviceModel } from '../models/DeviceModel.js';
 import { cToF, fToC, normalizeNumber, safeParseInt } from '../helper.js';
 
 export default class Refrigerator extends BaseDevice {

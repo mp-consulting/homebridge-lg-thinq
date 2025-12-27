@@ -1,8 +1,8 @@
 import { AccessoryContext, BaseDevice } from '../baseDevice.js';
 import { LGThinQHomebridgePlatform } from '../platform.js';
 import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
-import { Device } from '../lib/Device.js';
-import { EnumValue, RangeValue, ValueType } from '../lib/DeviceModel.js';
+import { Device } from '../models/Device.js';
+import { EnumValue, RangeValue, ValueType } from '../models/DeviceModel.js';
 import { cToF, fToC, normalizeBoolean, normalizeNumber, safeParseInt } from '../helper.js';
 import {
   AC_MODEL_FEATURES,

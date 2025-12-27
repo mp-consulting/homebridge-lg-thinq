@@ -1,5 +1,5 @@
 import { Helper, fToC, cToF } from './helper.js';
-import { Device } from './lib/Device.js';
+import { Device } from './models/Device.js';
 import { Categories } from 'homebridge';
 import { PlatformType } from './lib/constants.js';
 import { describe, expect, it, jest } from '@jest/globals';
