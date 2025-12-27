@@ -1,5 +1,40 @@
 # Change Log
 
+## v1.0.6
+
+### Refactoring
+
+* Add BaseStatus class with common getter helpers
+  - getBoolean(), getInt(), getFloat(), getString() for type-safe data access
+  - hasProperty() for checking snapshot data existence
+  - getAirQualityData() and getFilterLifePercent() for common patterns
+  - Reduces boilerplate in Status classes
+
+* Add model features support to DeviceRegistry
+  - Centralized model-specific feature configuration
+  - hasModelFeature() helper for feature detection
+  - Supports AC features: jetMode, quietMode, energySaveMode
+
+* Enhance BaseDevice with additional helpers
+  - getStatus() now auto-resolves snapshot key from DeviceRegistry
+  - Add setBooleanControl() for simplified boolean device control
+  - Add hasModelFeature() to check model-specific feature support
+
+* Add TemperatureConverter utility class
+  - Reusable temperature conversion between HomeKit and LG devices
+  - Supports Celsius/Fahrenheit with device model mapping
+  - Consolidates duplicate conversion logic
+
+* Refactor AirPurifierStatus to use BaseStatus
+  - Uses type-safe getter helpers
+  - Uses getAirQualityData() and getFilterLifePercent() helpers
+
+* All device Status getters now use auto-resolve snapshot keys
+
+### Bug fixes
+
+* Fix MICROWAVE snapshotKey in DeviceRegistry (was 'microwaveState', now 'ovenState')
+
 ## v1.0.5
 
 ### Refactoring
