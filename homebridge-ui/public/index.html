@@ -76,13 +76,19 @@
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span>Discovered Devices</span>
-      <button id="btn-refresh" class="btn btn-sm btn-outline-secondary">
-        <span class="spinner-border spinner-border-sm hidden" id="refresh-spinner"></span>
-        Refresh
-      </button>
+      <div>
+        <button id="btn-select-all" class="btn btn-sm btn-outline-secondary me-1">Select All</button>
+        <button id="btn-refresh" class="btn btn-sm btn-outline-secondary">
+          <span class="spinner-border spinner-border-sm hidden" id="refresh-spinner"></span>
+          Refresh
+        </button>
+      </div>
     </div>
     <div class="card-body device-list" id="device-list">
       <!-- Devices will be populated here -->
+    </div>
+    <div class="card-footer text-muted small">
+      Select devices to add to HomeKit. Use "Advanced Settings" to configure device-specific options.
     </div>
   </div>
 

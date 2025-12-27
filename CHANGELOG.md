@@ -1,5 +1,15 @@
 # Change Log
 
+## v1.0.4
+
+### Features
+
+* Improve device selection in Config UI
+  - Add checkboxes to select/deselect devices
+  - Add "Select All / Deselect All" button
+  - Save devices with type for device-specific settings in Advanced Settings
+  - Preserve existing device settings when saving
+
 ## v1.0.3
 
 ### Improvements

@@ -4,6 +4,7 @@
   // State
   let credentials = { refresh_token: null, country: null, language: null };
   let devices = [];
+  let selectedDevices = new Set();
 
   // DOM helper
   const $ = id => document.getElementById(id);
@@ -16,6 +17,11 @@
   // Load existing config
   const pluginConfig = await homebridge.getPluginConfig();
   const config = pluginConfig[0] || {};
+
+  // Initialize selected devices from config
+  if (config.devices && Array.isArray(config.devices)) {
+    config.devices.forEach(d => selectedDevices.add(d.id));
+  }
 
   // Populate country select
   const populateCountrySelect = () => {
@@ -69,6 +75,27 @@
     return div.innerHTML;
   };
 
+  // Toggle device selection
+  const toggleDevice = (deviceId) => {
+    if (selectedDevices.has(deviceId)) {
+      selectedDevices.delete(deviceId);
+    } else {
+      selectedDevices.add(deviceId);
+    }
+    renderDevices();
+    updateSelectAllButton();
+  };
+
+  // Update select all button text
+  const updateSelectAllButton = () => {
+    const btn = $('btn-select-all');
+    if (selectedDevices.size === devices.length && devices.length > 0) {
+      btn.textContent = 'Deselect All';
+    } else {
+      btn.textContent = 'Select All';
+    }
+  };
+
   // Render device list
   const renderDevices = () => {
     const list = $('device-list');
@@ -76,8 +103,13 @@
       list.innerHTML = '<div class="text-center text-muted py-4">No devices found</div>';
       return;
     }
-    list.innerHTML = devices.map(d => `
-      <div class="device-item">
+    list.innerHTML = devices.map(d => {
+      const isSelected = selectedDevices.has(d.id);
+      return `
+      <div class="device-item ${isSelected ? 'device-selected' : ''}" data-device-id="${escapeHtml(d.id)}">
+        <div class="device-checkbox">
+          <input type="checkbox" class="form-check-input" ${isSelected ? 'checked' : ''}>
+        </div>
         <div class="device-info">
           <div class="device-name">${escapeHtml(d.name)}</div>
           <div class="device-id">ID: ${escapeHtml(d.id)}</div>
@@ -87,7 +119,41 @@
           <span class="status-badge ${d.online !== false ? 'status-online' : 'status-offline'}">${d.online !== false ? 'Online' : 'Offline'}</span>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
+
+    // Add click handlers
+    list.querySelectorAll('.device-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const deviceId = item.dataset.deviceId;
+        toggleDevice(deviceId);
+      });
+    });
+
+    updateSelectAllButton();
+  };
+
+  // Get selected devices config
+  const getSelectedDevicesConfig = () => {
+    // Merge with existing device configs to preserve settings
+    const existingDeviceConfigs = {};
+    if (config.devices && Array.isArray(config.devices)) {
+      config.devices.forEach(d => {
+        existingDeviceConfigs[d.id] = d;
+      });
+    }
+
+    return devices
+      .filter(d => selectedDevices.has(d.id))
+      .map(d => {
+        const existing = existingDeviceConfigs[d.id] || {};
+        return {
+          ...existing,
+          id: d.id,
+          name: existing.name || d.name,
+          type: d.type,
+        };
+      });
   };
 
   // Load devices from API
@@ -105,6 +171,12 @@
       if (res.success) {
         devices = res.devices || [];
         $('device-count').textContent = devices.length;
+
+        // If no devices are selected yet, select all by default
+        if (selectedDevices.size === 0 && devices.length > 0) {
+          devices.forEach(d => selectedDevices.add(d.id));
+        }
+
         renderDevices();
       } else {
         homebridge.toast.error(res.error || 'Failed to load devices');
@@ -231,8 +303,29 @@
   // Event: Refresh devices
   $('btn-refresh').addEventListener('click', loadDevices);
 
+  // Event: Select all / Deselect all
+  $('btn-select-all').addEventListener('click', () => {
+    if (selectedDevices.size === devices.length) {
+      selectedDevices.clear();
+    } else {
+      devices.forEach(d => selectedDevices.add(d.id));
+    }
+    renderDevices();
+  });
+
   // Event: Advanced settings
-  $('btn-schema').addEventListener('click', () => homebridge.showSchemaForm());
+  $('btn-schema').addEventListener('click', async () => {
+    // Save devices first so they appear in schema form
+    const deviceConfigs = getSelectedDevicesConfig();
+    const newConfig = {
+      ...config,
+      devices: deviceConfigs,
+    };
+    await homebridge.updatePluginConfig([newConfig]);
+    Object.assign(config, newConfig);
+
+    homebridge.showSchemaForm();
+  });
 
   // Event: Save configuration
   $('btn-save').addEventListener('click', async () => {
@@ -240,6 +333,7 @@
 
     try {
       const { country, language } = getSelectedCountryLanguage();
+      const deviceConfigs = getSelectedDevicesConfig();
 
       const newConfig = {
         ...config,
@@ -250,6 +344,7 @@
         refresh_token: credentials.refresh_token,
         thinq1: $('thinq1').checked,
         auth_mode: 'token',
+        devices: deviceConfigs,
       };
 
       // Remember credentials if checked
@@ -282,7 +377,15 @@
   });
 
   // Event: Config changes from schema form
-  homebridge.addEventListener('configChanged', e => Object.assign(config, e.data));
+  homebridge.addEventListener('configChanged', e => {
+    Object.assign(config, e.data);
+    // Update selected devices from config changes
+    if (e.data.devices && Array.isArray(e.data.devices)) {
+      selectedDevices.clear();
+      e.data.devices.forEach(d => selectedDevices.add(d.id));
+      renderDevices();
+    }
+  });
 
   // Event: Country/language change
   $('country_language').addEventListener('change', async () => {
