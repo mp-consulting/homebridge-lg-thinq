@@ -1,7 +1,15 @@
 import { Categories } from 'homebridge';
 import { Device } from './Device.js';
-import { PlatformType } from './constants.js';
+import { PlatformType, AC_MODEL_FEATURES } from './constants.js';
 import type { BaseDevice } from '../baseDevice.js';
+
+/**
+ * Model-specific feature configuration
+ */
+export interface ModelFeatures {
+  /** List of model identifiers that support this feature */
+  [featureName: string]: string[];
+}
 
 /**
  * Device descriptor containing all metadata for a device type
@@ -19,6 +27,8 @@ export interface DeviceDescriptor {
   snapshotKey?: string;
   /** Default configuration values */
   configDefaults?: Record<string, unknown>;
+  /** Model-specific feature support */
+  modelFeatures?: ModelFeatures;
 }
 
 /**
@@ -149,6 +159,7 @@ export class DeviceRegistry {
         ac_air_clean: true,
         ac_energy_save: true,
       },
+      modelFeatures: AC_MODEL_FEATURES,
     }],
     ['STYLER', {
       type: 'STYLER',
@@ -241,5 +252,28 @@ export class DeviceRegistry {
    */
   public static getSupportedTypes(): string[] {
     return Array.from(this.DEVICES.keys());
+  }
+
+  /**
+   * Get model features for a device type
+   */
+  public static getModelFeatures(type: string): ModelFeatures | undefined {
+    const descriptor = this.DEVICES.get(type);
+    return descriptor?.modelFeatures;
+  }
+
+  /**
+   * Check if a specific model supports a feature
+   * @param type - Device type (e.g., 'AC')
+   * @param featureName - Feature name (e.g., 'jetMode')
+   * @param model - Model identifier to check
+   * @returns true if the model supports the feature
+   */
+  public static hasModelFeature(type: string, featureName: string, model: string): boolean {
+    const features = this.getModelFeatures(type);
+    if (!features || !features[featureName]) {
+      return false;
+    }
+    return features[featureName].some(m => model.includes(m));
   }
 }
