@@ -1,5 +1,23 @@
 # Change Log
 
+## v1.0.8
+
+### Refactoring
+
+* Refactor Status classes to extend BaseStatus
+  - DehumidifierStatus now uses type-safe helper methods (getBool, getInt)
+  - WasherDryerStatus uses BaseStatus helpers with public data getter for legacy access
+  - StylerStatus uses getStatus() with explicit snapshot key
+  - Add RangeHoodStatus class (previously had no Status class)
+
+* Move airCleanModels to centralized AC_MODEL_FEATURES
+  - Add airClean feature to AC_MODEL_FEATURES in constants.ts
+  - AirConditioner now uses hasModelFeature() helper
+
+* Refactor AeroTower to use setDeviceControl helper
+  - Simplifies control methods from ~40 lines to ~8 lines
+  - Automatic snapshot updates on successful control
+
 ## v1.0.7
 
 ### Refactoring
