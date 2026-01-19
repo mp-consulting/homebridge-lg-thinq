@@ -1,5 +1,14 @@
 # Change Log
 
+## v1.0.11
+
+### Bug fixes
+
+* Fix AirConditioner RotationSpeed characteristic exceeding maximum value
+  - RotationSpeed was configured with maxValue of 5 but received values 0-100
+  - Update characteristic to use 0-100 range matching windStrength getter
+  - Fix setFanSpeed to properly convert percentage back to wind strength value
+
 ## v1.0.10
 
 ### Bug fixes

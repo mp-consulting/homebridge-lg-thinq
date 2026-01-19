@@ -259,8 +259,8 @@ export default class AirConditioner extends BaseDevice {
     this.serviceFanV2.getCharacteristic(Characteristic.RotationSpeed)
       .setProps({
         minValue: 0,
-        maxValue: Object.keys(FanSpeed).length / 2,
-        minStep: 0.1,
+        maxValue: HUMIDITY_MAX,
+        minStep: 1,
       })
       .onSet(this.setFanSpeed.bind(this));
     this.serviceFanV2.getCharacteristic(Characteristic.SwingMode)
@@ -360,8 +360,8 @@ export default class AirConditioner extends BaseDevice {
       this.service.getCharacteristic(Characteristic.RotationSpeed)
         .setProps({
           minValue: 0,
-          maxValue: Object.keys(FanSpeed).length / 2,
-          minStep: 0.1,
+          maxValue: HUMIDITY_MAX,
+          minStep: 1,
         })
         .onSet(this.setFanSpeed.bind(this));
     }
@@ -1020,11 +1020,12 @@ export default class AirConditioner extends BaseDevice {
     if (vNum === null) {
       return;
     }
-    const speedValue = Math.max(1, Math.round(vNum));
+    // Convert percentage (0-100) back to wind strength (FAN_SPEED_MIN to FAN_SPEED_MAX)
+    const percentage = Math.max(0, Math.min(HUMIDITY_MAX, vNum));
+    const windStrength = Math.round((percentage / HUMIDITY_MAX) * (FAN_SPEED_MAX - FAN_SPEED_MIN) + FAN_SPEED_MIN);
 
-    this.logger.debug('Set fan speed = ', speedValue);
+    this.logger.debug('Set fan speed = ', percentage, '% -> windStrength =', windStrength);
     const device: Device = this.accessory.context.device;
-    const windStrength = safeParseInt(Object.keys(FanSpeed)[speedValue - 1], FanSpeed.HIGH);
     try {
       await this.platform.ThinQ?.deviceControl(device.id, {
         dataKey: 'airState.windStrength',
