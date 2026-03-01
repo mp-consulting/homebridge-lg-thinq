@@ -1,8 +1,8 @@
 import AirPurifier from './AirPurifier.js';
-import { LGThinQHomebridgePlatform } from '../platform.js';
-import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
-import { Device } from '../models/Device.js';
-import { AccessoryContext } from '../baseDevice.js';
+import type { LGThinQHomebridgePlatform } from '../platform.js';
+import type { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
+import type { Device } from '../models/Device.js';
+import type { AccessoryContext } from '../baseDevice.js';
 import { normalizeNumber } from '../helper.js';
 
 export enum LightBrightness {

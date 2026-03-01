@@ -1,5 +1,5 @@
 import { DeviceType } from '../lib/constants.js';
-import { DeviceModel } from './DeviceModel.js';
+import type { DeviceModel } from './DeviceModel.js';
 
 export interface DeviceData {
   deviceId: string;

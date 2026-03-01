@@ -1,5 +1,5 @@
-import { Gateway, GatewayData } from '../Gateway.js';
-import { describe, test, expect, beforeEach } from '@jest/globals';
+import type { GatewayData } from '../Gateway.js';
+import { Gateway } from '../Gateway.js';
 
 describe('Gateway', () => {
   const mockData: GatewayData = {

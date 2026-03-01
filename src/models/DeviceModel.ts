@@ -206,41 +206,41 @@ export class DeviceModel {
     // Determine the type of the value and return the appropriate structure
     const type = data.type || data.data_type;
     switch (type.toLowerCase()) {
-    case 'enum':
-      return {
-        type: ValueType.Enum,
-        options: data.option || data.value_mapping,
-      } as EnumValue;
+      case 'enum':
+        return {
+          type: ValueType.Enum,
+          options: data.option || data.value_mapping,
+        } as EnumValue;
 
-    case 'range':
-      return {
-        type: ValueType.Range,
-        min: (data.option || data.value_validation)?.min,
-        max: (data.option || data.value_validation)?.max,
-        step: (data.option || data.value_validation)?.step || 1,
-      } as RangeValue;
+      case 'range':
+        return {
+          type: ValueType.Range,
+          min: (data.option || data.value_validation)?.min,
+          max: (data.option || data.value_validation)?.max,
+          step: (data.option || data.value_validation)?.step || 1,
+        } as RangeValue;
 
-    case 'bit': {
-      const bitValues = Object.values(data.option).reduce((obj: any, value) => ({
-        ...obj,
-        [(value as any).startbit]: (value as any).values,
-      }), {});
-      return { type: ValueType.Bit, options: bitValues } as BitValue;
-    }
-
-    case 'reference': {
-      const [ref] = data.option;
-      return { type: ValueType.Reference, reference: this.data[ref] } as ReferenceValue;
-    }
-
-    case 'string':
-      if (typeof data._comment === 'string') {
-        return { type: ValueType.StringComment, comment: data._comment } as StringCommentValue;
+      case 'bit': {
+        const bitValues = Object.values(data.option).reduce((obj: any, value) => ({
+          ...obj,
+          [(value as any).startbit]: (value as any).values,
+        }), {});
+        return { type: ValueType.Bit, options: bitValues } as BitValue;
       }
-      return null;
 
-    default:
-      throw new Error(`Unsupported value type: ${data.type}`);
+      case 'reference': {
+        const [ref] = data.option;
+        return { type: ValueType.Reference, reference: this.data[ref] } as ReferenceValue;
+      }
+
+      case 'string':
+        if (typeof data._comment === 'string') {
+          return { type: ValueType.StringComment, comment: data._comment } as StringCommentValue;
+        }
+        return null;
+
+      default:
+        throw new Error(`Unsupported value type: ${data.type}`);
     }
   }
 

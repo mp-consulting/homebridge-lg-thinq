@@ -1,8 +1,10 @@
-import { AccessoryContext, BaseDevice } from '../baseDevice.js';
-import { LGThinQHomebridgePlatform } from '../platform.js';
-import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
-import { Device } from '../models/Device.js';
-import { EnumValue, RangeValue, ValueType } from '../models/DeviceModel.js';
+import type { AccessoryContext } from '../baseDevice.js';
+import { BaseDevice } from '../baseDevice.js';
+import type { LGThinQHomebridgePlatform } from '../platform.js';
+import type { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
+import type { Device } from '../models/Device.js';
+import type { EnumValue, RangeValue } from '../models/DeviceModel.js';
+import { ValueType } from '../models/DeviceModel.js';
 import { cToF, fToC, normalizeBoolean, normalizeNumber, safeParseInt } from '../helper.js';
 import {
   AC_MODEL_FEATURES,
@@ -894,17 +896,17 @@ export default class AirConditioner extends BaseDevice {
     // Map HomeKit states to LG opModes
     let opMode;
     switch (value) {
-    case TargetHeaterCoolerState.AUTO:
-      opMode = OpMode.AUTO; // LG’s AUTO mode = 6
-      break;
-    case TargetHeaterCoolerState.HEAT:
-      opMode = OpMode.HEAT; // LG’s HEAT mode = 4
-      break;
-    case TargetHeaterCoolerState.COOL:
-      opMode = OpMode.COOL; // LG’s COOL mode = 0
-      break;
-    default:
-      opMode = this.Status.opMode; // Keep current mode
+      case TargetHeaterCoolerState.AUTO:
+        opMode = OpMode.AUTO; // LG’s AUTO mode = 6
+        break;
+      case TargetHeaterCoolerState.HEAT:
+        opMode = OpMode.HEAT; // LG’s HEAT mode = 4
+        break;
+      case TargetHeaterCoolerState.COOL:
+        opMode = OpMode.COOL; // LG’s COOL mode = 0
+        break;
+      default:
+        opMode = this.Status.opMode; // Keep current mode
     }
 
     if (opMode === this.Status.opMode) {

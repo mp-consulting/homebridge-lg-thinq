@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import { vi } from 'vitest';
 import { ThinQ } from '../api/ThinQ.js';
 import { ValueType } from '../models/DeviceModel.js';
 
@@ -15,7 +15,7 @@ describe('ThinQ.deviceControl coercion', () => {
 
     // stub out network calls
     (thinq as any).api = {
-      sendCommandToDevice: jest.fn(async () => ({ resultCode: '0000' })) as any,
+      sendCommandToDevice: vi.fn(async () => ({ resultCode: '0000' })) as any,
     } as any;
   });
 
@@ -32,8 +32,8 @@ describe('ThinQ.deviceControl coercion', () => {
     await thinq.deviceControl('dev1', values);
 
     // assert that api.sendCommandToDevice received coerced numeric value
-    expect(((thinq as any).api.sendCommandToDevice as jest.Mock).mock.calls.length).toBe(1);
-    const sentValues = ((thinq as any).api.sendCommandToDevice as jest.Mock).mock.calls[0][1];
+    expect(((thinq as any).api.sendCommandToDevice as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1);
+    const sentValues = ((thinq as any).api.sendCommandToDevice as ReturnType<typeof vi.fn>).mock.calls[0][1];
     expect((sentValues as any).dataValue).toBe(1);
   });
 
@@ -48,7 +48,7 @@ describe('ThinQ.deviceControl coercion', () => {
 
     await thinq.deviceControl('dev2', values);
 
-    const sentValues2 = ((thinq as any).api.sendCommandToDevice as jest.Mock).mock.calls[0][1];
+    const sentValues2 = ((thinq as any).api.sendCommandToDevice as ReturnType<typeof vi.fn>).mock.calls[0][1];
     expect(typeof (sentValues2 as any).dataSetList.temp).toBe('number');
     expect((sentValues2 as any).dataSetList.temp).toBe(23);
   });
@@ -65,7 +65,7 @@ describe('ThinQ.deviceControl coercion', () => {
 
     await thinq.deviceControl('dev3', values);
 
-    const sentValues3 = ((thinq as any).api.sendCommandToDevice as jest.Mock).mock.calls[0][1];
+    const sentValues3 = ((thinq as any).api.sendCommandToDevice as ReturnType<typeof vi.fn>).mock.calls[0][1];
     expect((sentValues3 as any).dataSetList.mode).toBe('1');
   });
 });

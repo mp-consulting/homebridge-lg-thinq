@@ -1,6 +1,6 @@
 import { default as RefrigeratorV2, RefrigeratorStatus } from '../../devices/Refrigerator.js';
-import { CharacteristicValue } from 'homebridge';
-import { Device } from '../../models/Device.js';
+import type { CharacteristicValue } from 'homebridge';
+import type { Device } from '../../models/Device.js';
 import { fToC, safeParseInt } from '../../helper.js';
 
 export default class Refrigerator extends RefrigeratorV2 {

@@ -1,4 +1,3 @@
-import { describe, test, expect } from '@jest/globals';
 import Helper from '../../devices-v1/helper.js';
 import { Device } from '../../models/Device.js';
 

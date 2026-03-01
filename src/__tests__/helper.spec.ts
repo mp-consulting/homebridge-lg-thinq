@@ -1,12 +1,12 @@
+import { vi } from 'vitest';
 import { Helper, fToC, cToF } from '../helper.js';
-import { Device } from '../models/Device.js';
+import type { Device } from '../models/Device.js';
 import { Categories } from 'homebridge';
 import { PlatformType } from '../lib/constants.js';
-import { describe, expect, it, jest } from '@jest/globals';
 
 // Mock dependencies
-jest.mock('../models/Device');
-jest.mock('../lib/constants', () => ({
+vi.mock('../models/Device');
+vi.mock('../lib/constants', () => ({
   PlatformType: {
     ThinQ1: 'thinq1',
     ThinQ2: 'thinq2',

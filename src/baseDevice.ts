@@ -1,6 +1,7 @@
-import { LGThinQHomebridgePlatform } from './platform.js';
-import { HAPStatus, Logger, PlatformAccessory, Service, WithUUID } from 'homebridge';
-import { Device } from './models/Device.js';
+import type { LGThinQHomebridgePlatform } from './platform.js';
+import type { Logger, PlatformAccessory, Service, WithUUID } from 'homebridge';
+import { HAPStatus } from 'homebridge';
+import type { Device } from './models/Device.js';
 import { EventEmitter } from 'events';
 import { DeviceRegistry } from './models/DeviceRegistry.js';
 

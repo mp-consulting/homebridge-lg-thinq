@@ -1,7 +1,8 @@
-import { Logger, PlatformConfig } from 'homebridge';
+import type { Logger, PlatformConfig } from 'homebridge';
 import { API } from './API.js';
-import { LGThinQHomebridgePlatform } from '../platform.js';
-import { Device, DeviceData } from '../models/Device.js';
+import type { LGThinQHomebridgePlatform } from '../platform.js';
+import type { DeviceData } from '../models/Device.js';
+import { Device } from '../models/Device.js';
 import { DeviceType, PlatformType, MQTT_RETRY_DELAY_MS, REQUEST_TIMEOUT_MS } from '../lib/constants.js';
 import { DeviceModel, ValueType } from '../models/DeviceModel.js';
 import { randomUUID } from 'crypto';
@@ -189,36 +190,36 @@ export class ThinQ {
           return v;
         }
         switch (vm.type) {
-        case ValueType.Bit: {
-          if (typeof v === 'boolean') {
-            return v ? 1 : 0;
-          }
-          if (typeof v === 'string') {
-            const n = Number(v);
-            return Number.isNaN(n) ? (v === '1' ? 1 : 0) : n;
-          }
-          return v;
-        }
-        case ValueType.Range: {
-          if (v === null || v === undefined) {
+          case ValueType.Bit: {
+            if (typeof v === 'boolean') {
+              return v ? 1 : 0;
+            }
+            if (typeof v === 'string') {
+              const n = Number(v);
+              return Number.isNaN(n) ? (v === '1' ? 1 : 0) : n;
+            }
             return v;
           }
-          if (typeof v === 'number') {
+          case ValueType.Range: {
+            if (v === null || v === undefined) {
+              return v;
+            }
+            if (typeof v === 'number') {
+              return v;
+            }
+            const nv = Number(v);
+            return Number.isNaN(nv) ? v : nv;
+          }
+          case ValueType.Enum: {
+            if (typeof v === 'string') {
+              const enumKey = model.enumValue(k, v);
+              return enumKey !== null ? enumKey : v;
+            }
             return v;
           }
-          const nv = Number(v);
-          return Number.isNaN(nv) ? v : nv;
-        }
-        case ValueType.Enum: {
-          if (typeof v === 'string') {
-            const enumKey = model.enumValue(k, v);
-            return enumKey !== null ? enumKey : v;
+          default: {
+            return v;
           }
-          return v;
-        }
-        default: {
-          return v;
-        }
         }
       } catch (e) {
         return v;
@@ -337,7 +338,7 @@ export class ThinQ {
       rootCAUrl = 'http://www.tbs-x509.com/Comodo_AAA_Certificate_Services.crt';
     } else {
       // use legacy VeriSign cert for other endpoint
-      // eslint-disable-next-line max-len
+       
       rootCAUrl = 'https://www.websecurity.digicert.com/content/dam/websitesecurity/digitalassets/desktop/pdfs/roots/VeriSign-Class%203-Public-Primary-Certification-Authority-G5.pem';
     }
 

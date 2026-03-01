@@ -1,5 +1,5 @@
-import { DeviceModel } from '../models/DeviceModel.js';
-import { Logger } from 'homebridge';
+import type { DeviceModel } from '../models/DeviceModel.js';
+import type { Logger } from 'homebridge';
 
 /**
  * Convert Celsius to Fahrenheit

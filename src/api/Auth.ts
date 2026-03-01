@@ -4,10 +4,10 @@ import qs from 'qs';
 import { URL } from 'url';
 import { AuthenticationError, ManualProcessNeededErrorCode, TokenError } from '../errors/index.js';
 import * as constants from '../lib/constants.js';
-import { Gateway } from './Gateway.js';
+import type { Gateway } from './Gateway.js';
 import { requestClient } from './request.js';
 import { Session } from './Session.js';
-import { Logger } from 'homebridge';
+import type { Logger } from 'homebridge';
 
 /**
  * Handles authentication with the LG ThinQ API.

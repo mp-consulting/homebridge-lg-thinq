@@ -1,7 +1,8 @@
-import { AccessoryContext, BaseDevice } from '../baseDevice.js';
-import { LGThinQHomebridgePlatform } from '../platform.js';
-import { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
-import { Device } from '../models/Device.js';
+import type { AccessoryContext } from '../baseDevice.js';
+import { BaseDevice } from '../baseDevice.js';
+import type { LGThinQHomebridgePlatform } from '../platform.js';
+import type { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
+import type { Device } from '../models/Device.js';
 import { ValueType } from '../models/DeviceModel.js';
 import { BaseStatus } from '../status/BaseStatus.js';
 

@@ -1,5 +1,5 @@
-import { Device, DeviceData } from '../Device.js';
-import { describe, test, beforeEach, expect } from '@jest/globals';
+import type { DeviceData } from '../Device.js';
+import { Device } from '../Device.js';
 import Fs from 'fs';
 import Path from 'path';
 

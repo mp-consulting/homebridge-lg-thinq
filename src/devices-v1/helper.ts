@@ -1,5 +1,5 @@
-import { Device } from '../models/Device.js';
-import { DeviceModel } from '../models/DeviceModel.js';
+import type { Device } from '../models/Device.js';
+import type { DeviceModel } from '../models/DeviceModel.js';
 import AirState from './transforms/AirState.js';
 import WasherDryer from './transforms/WasherDryer.js';
 import RefState from './transforms/RefState.js';
@@ -19,25 +19,25 @@ export default class Helper {
     const decodedMonitor = device.deviceModel.decodeMonitor(monitorData || {});
 
     switch (device.type) {
-    case 'DRYER':
-    case 'WASHER':
-      device.data.snapshot = WasherDryer(device.deviceModel, decodedMonitor);
-      break;
-    case 'AIR_PURIFIER':
-      device.data.snapshot = AirPurifierState(device.deviceModel, decodedMonitor);
-      break;
-    case 'AC':
-      device.data.snapshot = AirState(device.deviceModel, decodedMonitor);
-      break;
-    case 'REFRIGERATOR':
-      device.data.snapshot = RefState(device.deviceModel, decodedMonitor);
-      break;
-    case 'HOOD':
-      device.data.snapshot = HoodState(device.deviceModel, decodedMonitor);
-      break;
-    default:
+      case 'DRYER':
+      case 'WASHER':
+        device.data.snapshot = WasherDryer(device.deviceModel, decodedMonitor);
+        break;
+      case 'AIR_PURIFIER':
+        device.data.snapshot = AirPurifierState(device.deviceModel, decodedMonitor);
+        break;
+      case 'AC':
+        device.data.snapshot = AirState(device.deviceModel, decodedMonitor);
+        break;
+      case 'REFRIGERATOR':
+        device.data.snapshot = RefState(device.deviceModel, decodedMonitor);
+        break;
+      case 'HOOD':
+        device.data.snapshot = HoodState(device.deviceModel, decodedMonitor);
+        break;
+      default:
       // return original device data if not supported
-      return device;
+        return device;
     }
 
     if (device.data.snapshot) {

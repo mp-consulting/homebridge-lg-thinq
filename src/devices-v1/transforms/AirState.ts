@@ -1,4 +1,4 @@
-import { DeviceModel, RangeValue } from '../../models/DeviceModel.js';
+import type { DeviceModel, RangeValue } from '../../models/DeviceModel.js';
 import { loopupEnum, safeParseInt, safeParseFloat } from '../helper.js';
 
 export enum ACOperation {

@@ -1,4 +1,4 @@
-import { Device } from './models/Device.js';
+import type { Device } from './models/Device.js';
 import { DeviceRegistry } from './models/DeviceRegistry.js';
 
 /**

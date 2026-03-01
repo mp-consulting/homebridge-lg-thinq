@@ -1,5 +1,5 @@
-import { DeviceModel, RangeValue, ModelData } from '../DeviceModel.js';
-import { describe, test, beforeEach, expect } from '@jest/globals';
+import type { RangeValue, ModelData } from '../DeviceModel.js';
+import { DeviceModel } from '../DeviceModel.js';
 import Fs from 'fs';
 import Path from 'path';
 

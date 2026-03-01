@@ -1,8 +1,8 @@
 import { default as V2, RotateSpeed } from '../../devices/AirPurifier.js';
-import { CharacteristicValue, Logger, PlatformAccessory } from 'homebridge';
-import { Device } from '../../models/Device.js';
-import { LGThinQHomebridgePlatform } from '../../platform.js';
-import { AccessoryContext } from '../../baseDevice.js';
+import type { CharacteristicValue, Logger, PlatformAccessory } from 'homebridge';
+import type { Device } from '../../models/Device.js';
+import type { LGThinQHomebridgePlatform } from '../../platform.js';
+import type { AccessoryContext } from '../../baseDevice.js';
 import { safeParseInt, normalizeNumber } from '../helper.js';
 
 export default class AirPurifier extends V2 {

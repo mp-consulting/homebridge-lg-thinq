@@ -1,4 +1,4 @@
-import { DeviceModel } from '../../models/DeviceModel.js';
+import type { DeviceModel } from '../../models/DeviceModel.js';
 import { lookupEnumIndex, loopupEnum, safeParseInt } from '../helper.js';
 
 export enum DoorOpenState {

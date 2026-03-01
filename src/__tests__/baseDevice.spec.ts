@@ -1,12 +1,14 @@
-import { BaseDevice, AccessoryContext } from '../baseDevice.js';
-import { LGThinQHomebridgePlatform } from '../platform.js';
-import { Logger, PlatformAccessory } from 'homebridge';
-import { Device, DeviceData } from '../models/Device.js';
-import { describe, expect, it, jest, beforeEach } from '@jest/globals';
+import { vi } from 'vitest';
+import type { AccessoryContext } from '../baseDevice.js';
+import { BaseDevice } from '../baseDevice.js';
+import type { LGThinQHomebridgePlatform } from '../platform.js';
+import type { Logger, PlatformAccessory } from 'homebridge';
+import type { DeviceData } from '../models/Device.js';
+import { Device } from '../models/Device.js';
 
 // Mock dependencies
-jest.mock('../platform.js');
-jest.mock('../models/Device');
+vi.mock('../platform.js');
+vi.mock('../models/Device');
 
 // Test suite for BaseDevice class
 describe('BaseDevice', () => {
@@ -43,10 +45,10 @@ describe('BaseDevice', () => {
 
 
     logger = {
-      debug: jest.fn(),
-      info: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
     } as unknown as Logger;
 
     platform = {
@@ -70,9 +72,9 @@ describe('BaseDevice', () => {
       context: {
         device: new Device(mockDeviceData),
       },
-      getService: jest.fn().mockReturnValue(null),
-      addService: jest.fn().mockImplementation(() => ({
-        setCharacteristic: jest.fn().mockReturnThis(),
+      getService: vi.fn().mockReturnValue(null),
+      addService: vi.fn().mockImplementation(() => ({
+        setCharacteristic: vi.fn().mockReturnThis(),
       })),
     } as unknown as PlatformAccessory<AccessoryContext>;
 
@@ -82,7 +84,7 @@ describe('BaseDevice', () => {
   it('should set accessory information on initialization', () => {
     baseDevice = new BaseDevice(platform, accessory, logger);
     expect(accessory.addService).toHaveBeenCalled();
-    const calledArg = (accessory.addService as jest.Mock).mock.calls[0][0] as any;
+    const calledArg = (accessory.addService as ReturnType<typeof vi.fn>).mock.calls[0][0] as any;
     if (typeof calledArg === 'function') {
       expect(calledArg.name).toBe('AccessoryInformation');
     } else {

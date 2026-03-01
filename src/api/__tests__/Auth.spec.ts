@@ -1,10 +1,9 @@
 /* eslint-disable dot-notation */
-/* eslint-disable @typescript-eslint/no-require-imports */
+import { vi } from 'vitest';
 import { Auth } from '../Auth.js';
 import { Gateway } from '../Gateway.js';
 import { Session } from '../Session.js';
-import { Logger } from 'homebridge';
-import { describe, test, beforeEach, expect, jest } from '@jest/globals';
+import type { Logger } from 'homebridge';
 import { AuthenticationError } from '../../errors/index.js';
 
 describe('Auth', () => {
@@ -23,10 +22,10 @@ describe('Auth', () => {
     });
 
     mockLogger = {
-      debug: jest.fn(),
-      info: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
     } as unknown as Logger;
 
     auth = new Auth(mockGateway, mockLogger);
@@ -45,7 +44,7 @@ describe('Auth', () => {
 
   test('should login and return a session', async () => {
     const mockSession = new Session('accessToken', 'refreshToken', Date.now() + 3600 * 1000);
-    jest.spyOn(auth, 'loginStep2').mockResolvedValueOnce(mockSession);
+    vi.spyOn(auth, 'loginStep2').mockResolvedValueOnce(mockSession);
 
     const session = await auth.login('testUser', 'testPassword');
     expect(session).toBe(mockSession);
@@ -78,18 +77,18 @@ describe('Auth', () => {
       oauth2_backend_url: 'https://example.com/oauth',
     };
 
-    jest.spyOn(auth['gateway'], 'emp_base_url', 'get').mockReturnValue('https://example.com/emp/');
-    jest.spyOn(auth['gateway'], 'login_base_url', 'get').mockReturnValue('https://example.com/spx/');
-    jest.spyOn(auth['gateway'], 'country_code', 'get').mockReturnValue('US');
-    jest.spyOn(auth['gateway'], 'language_code', 'get').mockReturnValue('en-US');
+    vi.spyOn(auth['gateway'], 'emp_base_url', 'get').mockReturnValue('https://example.com/emp/');
+    vi.spyOn(auth['gateway'], 'login_base_url', 'get').mockReturnValue('https://example.com/spx/');
+    vi.spyOn(auth['gateway'], 'country_code', 'get').mockReturnValue('US');
+    vi.spyOn(auth['gateway'], 'language_code', 'get').mockReturnValue('en-US');
 
-    const requestClient = require('../request').requestClient;
-    jest.spyOn(requestClient, 'post')
+    const { requestClient } = await import('../request.js');
+    vi.spyOn(requestClient, 'post')
       .mockResolvedValueOnce({ data: mockPreLoginResponse }) // Mock preLogin response
       .mockResolvedValueOnce({ data: mockAccountResponse }) // Mock account response
       .mockResolvedValueOnce({ data: mockTokenResponse }); // Mock token response
 
-    jest.spyOn(requestClient, 'get')
+    vi.spyOn(requestClient, 'get')
       .mockResolvedValueOnce({ data: mockSecretKeyResponse }) // Mock secret key response
       .mockResolvedValueOnce({ data: mockAuthorizeResponse }); // Mock authorize response
 
@@ -115,8 +114,8 @@ describe('Auth', () => {
       tStamp: 'mockTimestamp',
       encrypted_pw: 'mockEncryptedPassword',
     };
-    const requestClient = require('../request').requestClient;
-    jest.spyOn(requestClient, 'post')
+    const { requestClient } = await import('../request.js');
+    vi.spyOn(requestClient, 'post')
       .mockResolvedValueOnce({ data: mockPreLoginResponse }) // Mock preLogin response
       .mockRejectedValueOnce(mockErrorResponse);
 

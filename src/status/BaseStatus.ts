@@ -1,4 +1,4 @@
-import { DeviceModel } from '../models/DeviceModel.js';
+import type { DeviceModel } from '../models/DeviceModel.js';
 import { safeParseInt } from '../helper.js';
 
 /**

@@ -6,11 +6,12 @@ import { Gateway } from './Gateway.js';
 
 import { requestClient } from './request.js';
 import { Auth } from './Auth.js';
-import { WorkId } from './ThinQ.js';
+import type { WorkId } from './ThinQ.js';
 import { ManualProcessNeeded, MonitorError, NotConnectedError, TokenExpiredError } from '../errors/index.js';
 import crypto from 'crypto';
-import axios, { Method } from 'axios';
-import { Logger } from 'homebridge';
+import type { Method } from 'axios';
+import axios from 'axios';
+import type { Logger } from 'homebridge';
 
 
 /**

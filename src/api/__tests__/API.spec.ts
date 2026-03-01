@@ -1,7 +1,7 @@
 /* eslint-disable dot-notation */
+import { vi } from 'vitest';
 import { API } from '../API.js';
-import { Logger } from 'homebridge';
-import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import type { Logger } from 'homebridge';
 
 describe('API', () => {
   let api: API;
@@ -9,10 +9,10 @@ describe('API', () => {
 
   beforeEach(() => {
     mockLogger = {
-      debug: jest.fn(),
-      info: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
     } as unknown as Logger;
 
     api = new API('EC', 'en-US', mockLogger);
@@ -39,8 +39,8 @@ describe('API', () => {
     const mockHomes = [{ homeId: 'home1' }];
     const mockDevices = [{ id: 'device1' }, { id: 'device2' }];
 
-    jest.spyOn(api, 'getListHomes').mockResolvedValueOnce(mockHomes);
-    jest.spyOn(api.httpClient, 'request').mockResolvedValueOnce({
+    vi.spyOn(api, 'getListHomes').mockResolvedValueOnce(mockHomes);
+    vi.spyOn(api.httpClient, 'request').mockResolvedValueOnce({
       data: { result: { devices: mockDevices } },
     });
 
@@ -49,7 +49,7 @@ describe('API', () => {
   });
 
   test('should send command to device', async () => {
-    const mockRequest = jest.spyOn(api.httpClient, 'request').mockResolvedValueOnce({ data: { success: true } });
+    const mockRequest = vi.spyOn(api.httpClient, 'request').mockResolvedValueOnce({ data: { success: true } });
 
     const result = await api.sendCommandToDevice('device1', { key: 'value' }, 'Set');
     expect(mockRequest).toHaveBeenCalledWith(

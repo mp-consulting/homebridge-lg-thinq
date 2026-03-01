@@ -4,7 +4,7 @@
   // State
   let credentials = { refresh_token: null, country: null, language: null };
   let devices = [];
-  let selectedDevices = new Set();
+  const selectedDevices = new Set();
 
   // DOM helper
   const $ = id => document.getElementById(id);
@@ -49,16 +49,26 @@
 
   // Pre-fill form from config
   const prefillForm = () => {
-    if (config.username) $('username').value = config.username;
-    if (config.password) $('password').value = config.password;
-    if (config.thinq1) $('thinq1').checked = config.thinq1;
-    if (config.username && config.password) $('rememberCredentials').checked = true;
+    if (config.username) {
+      $('username').value = config.username;
+    }
+    if (config.password) {
+      $('password').value = config.password;
+    }
+    if (config.thinq1) {
+      $('thinq1').checked = config.thinq1;
+    }
+    if (config.username && config.password) {
+      $('rememberCredentials').checked = true;
+    }
 
     // Set country/language
     const country = config.country || DEFAULT_COUNTRY;
     const language = config.language || DEFAULT_LANGUAGE;
     const option = findCountryOption(country, language);
-    if (option) option.selected = true;
+    if (option) {
+      option.selected = true;
+    }
   };
 
   // Show/hide step
