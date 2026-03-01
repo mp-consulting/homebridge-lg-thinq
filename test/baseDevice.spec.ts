@@ -1,14 +1,18 @@
 import { vi } from 'vitest';
-import type { AccessoryContext } from '../baseDevice.js';
-import { BaseDevice } from '../baseDevice.js';
-import type { LGThinQHomebridgePlatform } from '../platform.js';
+import type { AccessoryContext } from '../src/baseDevice.js';
+import { BaseDevice } from '../src/baseDevice.js';
+import type { LGThinQHomebridgePlatform } from '../src/platform.js';
 import type { Logger, PlatformAccessory } from 'homebridge';
-import type { DeviceData } from '../models/Device.js';
-import { Device } from '../models/Device.js';
+import type { DeviceData } from '../src/models/Device.js';
+import { Device } from '../src/models/Device.js';
 
 // Mock dependencies
-vi.mock('../platform.js');
-vi.mock('../models/Device');
+vi.mock('homebridge', () => ({
+  HAPStatus: { SUCCESS: 0 },
+  Categories: {},
+}));
+vi.mock('../src/platform.js');
+vi.mock('../src/models/Device');
 
 // Test suite for BaseDevice class
 describe('BaseDevice', () => {

@@ -48,7 +48,7 @@ export default tseslint.config(
   },
   // Test files — relaxed rules
   {
-    files: ['src/**/*.{test,spec}.ts', 'test/**/*.{test,spec}.ts', 'tests/**/*.{test,spec}.ts', 'src/__tests__/**/*.ts'],
+    files: ['src/**/*.{test,spec}.ts', 'test/**/*.{test,spec}.ts', 'tests/**/*.{test,spec}.ts'],
     rules: {
       '@typescript-eslint/no-use-before-define': 'off',
       '@typescript-eslint/no-explicit-any': 'off',

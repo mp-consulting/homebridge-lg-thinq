@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
-import { ThinQ } from '../api/ThinQ.js';
-import { ValueType } from '../models/DeviceModel.js';
+import { ThinQ } from '../src/api/ThinQ.js';
+import { ValueType } from '../src/models/DeviceModel.js';
 
 describe('ThinQ.deviceControl coercion', () => {
   let thinq: ThinQ;

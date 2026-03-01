@@ -1,12 +1,21 @@
 import { vi } from 'vitest';
-import { Helper, fToC, cToF } from '../helper.js';
-import type { Device } from '../models/Device.js';
+import { Helper, fToC, cToF } from '../src/helper.js';
+import type { Device } from '../src/models/Device.js';
 import { Categories } from 'homebridge';
-import { PlatformType } from '../lib/constants.js';
+import { PlatformType } from '../src/lib/constants.js';
 
 // Mock dependencies
-vi.mock('../models/Device');
-vi.mock('../lib/constants', async (importOriginal) => {
+vi.mock('homebridge', () => ({
+  Categories: {
+    OTHER: 1,
+    AIR_PURIFIER: 19,
+    AIR_CONDITIONER: 21,
+    AIR_DEHUMIDIFIER: 23,
+  },
+  HAPStatus: { SUCCESS: 0 },
+}));
+vi.mock('../src/models/Device');
+vi.mock('../src/lib/constants', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
