@@ -1,6 +1,6 @@
 /* eslint-disable dot-notation */
 import { vi } from 'vitest';
-import Persist from '../Persist.js';
+import Persist from '../../src/lib/Persist.js';
 import Fs from 'fs/promises';
 import Path from 'path';
 

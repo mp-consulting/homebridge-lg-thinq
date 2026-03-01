@@ -1,5 +1,5 @@
-import type { GatewayData } from '../Gateway.js';
-import { Gateway } from '../Gateway.js';
+import type { GatewayData } from '../../src/api/Gateway.js';
+import { Gateway } from '../../src/api/Gateway.js';
 
 describe('Gateway', () => {
   const mockData: GatewayData = {

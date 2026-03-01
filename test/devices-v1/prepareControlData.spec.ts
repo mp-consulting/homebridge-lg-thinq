@@ -1,5 +1,5 @@
-import Helper from '../../devices-v1/helper.js';
-import { Device } from '../../models/Device.js';
+import Helper from '../../src/devices-v1/helper.js';
+import { Device } from '../../src/models/Device.js';
 
 describe('v1 Helper.prepareControlData', () => {
   test('builds BINARY(BYTE) payload with boolean -> numeric coercion', () => {

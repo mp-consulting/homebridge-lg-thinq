@@ -22,7 +22,5 @@
     "homebridge-ui",
     "src"
   ],
-  "exclude": [
-    "src/**/__tests__/**"
-  ]
+  "exclude": []
 }

@@ -1,5 +1,5 @@
-import type { RangeValue, ModelData } from '../DeviceModel.js';
-import { DeviceModel } from '../DeviceModel.js';
+import type { RangeValue, ModelData } from '../../src/models/DeviceModel.js';
+import { DeviceModel } from '../../src/models/DeviceModel.js';
 import Fs from 'fs';
 import Path from 'path';
 

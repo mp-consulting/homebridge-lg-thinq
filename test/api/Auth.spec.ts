@@ -1,10 +1,10 @@
 /* eslint-disable dot-notation */
 import { vi } from 'vitest';
-import { Auth } from '../Auth.js';
-import { Gateway } from '../Gateway.js';
-import { Session } from '../Session.js';
+import { Auth } from '../../src/api/Auth.js';
+import { Gateway } from '../../src/api/Gateway.js';
+import { Session } from '../../src/api/Session.js';
 import type { Logger } from 'homebridge';
-import { AuthenticationError } from '../../errors/index.js';
+import { AuthenticationError } from '../../src/errors/index.js';
 
 describe('Auth', () => {
   let auth: Auth;
@@ -82,7 +82,7 @@ describe('Auth', () => {
     vi.spyOn(auth['gateway'], 'country_code', 'get').mockReturnValue('US');
     vi.spyOn(auth['gateway'], 'language_code', 'get').mockReturnValue('en-US');
 
-    const { requestClient } = await import('../request.js');
+    const { requestClient } = await import('../../src/api/request.js');
     vi.spyOn(requestClient, 'post')
       .mockResolvedValueOnce({ data: mockPreLoginResponse }) // Mock preLogin response
       .mockResolvedValueOnce({ data: mockAccountResponse }) // Mock account response
@@ -114,7 +114,7 @@ describe('Auth', () => {
       tStamp: 'mockTimestamp',
       encrypted_pw: 'mockEncryptedPassword',
     };
-    const { requestClient } = await import('../request.js');
+    const { requestClient } = await import('../../src/api/request.js');
     vi.spyOn(requestClient, 'post')
       .mockResolvedValueOnce({ data: mockPreLoginResponse }) // Mock preLogin response
       .mockRejectedValueOnce(mockErrorResponse);

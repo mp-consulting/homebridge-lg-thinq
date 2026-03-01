@@ -4,7 +4,7 @@ import {
   safeParseInt,
   safeParseFloat,
   toSeconds,
-} from '../normalize.js';
+} from '../../src/utils/normalize.js';
 
 describe('normalize utilities', () => {
   describe('normalizeBoolean', () => {

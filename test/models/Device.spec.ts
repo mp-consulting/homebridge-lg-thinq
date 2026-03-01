@@ -1,5 +1,5 @@
-import type { DeviceData } from '../Device.js';
-import { Device } from '../Device.js';
+import type { DeviceData } from '../../src/models/Device.js';
+import { Device } from '../../src/models/Device.js';
 import Fs from 'fs';
 import Path from 'path';
 

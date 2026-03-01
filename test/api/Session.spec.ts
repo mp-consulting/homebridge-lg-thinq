@@ -1,5 +1,5 @@
 /* eslint-disable dot-notation */
-import { Session } from '../Session.js';
+import { Session } from '../../src/api/Session.js';
 
 describe('Session', () => {
   let session: Session;

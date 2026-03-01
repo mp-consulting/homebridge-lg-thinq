@@ -1,6 +1,6 @@
 /* eslint-disable dot-notation */
 import { vi } from 'vitest';
-import { API } from '../API.js';
+import { API } from '../../src/api/API.js';
 import type { Logger } from 'homebridge';
 
 describe('API', () => {
