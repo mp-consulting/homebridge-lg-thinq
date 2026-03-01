@@ -6,12 +6,16 @@ import { PlatformType } from '../lib/constants.js';
 
 // Mock dependencies
 vi.mock('../models/Device');
-vi.mock('../lib/constants', () => ({
-  PlatformType: {
-    ThinQ1: 'thinq1',
-    ThinQ2: 'thinq2',
-  },
-}));
+vi.mock('../lib/constants', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    PlatformType: {
+      ThinQ1: 'thinq1',
+      ThinQ2: 'thinq2',
+    },
+  };
+});
 
 // Test suite for Helper class and utility functions
 describe('Helper', () => {
