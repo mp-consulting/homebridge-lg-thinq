@@ -1971,7 +1971,7 @@ export default class Oven extends BaseDevice {
     }
   }
 
-  update(snapshot: any) {
+  update(snapshot: Record<string, unknown>) {
     super.update(snapshot);
     const oven = snapshot.oven;
     if (!oven) {
@@ -1981,6 +1981,7 @@ export default class Oven extends BaseDevice {
 }
 
 export class OvenStatus {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(public data: any, protected deviceModel: DeviceModel) { }
 
   getState(key: string) {

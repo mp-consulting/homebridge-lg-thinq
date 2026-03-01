@@ -9,7 +9,7 @@ export default class WasherDryer2 extends WasherDryer {
     return new WasherDryerStatus(this.accessory.context.device.snapshot?.washer, this.accessory.context.device.deviceModel);
   }
 
-  public update(snapshot: any) {
+  public update(snapshot: Record<string, unknown>) {
     // override washer to washerDryer
     snapshot.washerDryer = snapshot.washer;
 

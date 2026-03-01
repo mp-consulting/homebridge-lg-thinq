@@ -1,4 +1,4 @@
-export function normalizeBoolean(value: any): boolean {
+export function normalizeBoolean(value: unknown): boolean {
   if (typeof value === 'boolean') {
     return value;
   }
@@ -12,7 +12,7 @@ export function normalizeBoolean(value: any): boolean {
   return !!value;
 }
 
-export function normalizeNumber(value: any): number | null {
+export function normalizeNumber(value: unknown): number | null {
   if (value === null || value === undefined) {
     return null;
   }
@@ -26,16 +26,16 @@ export function normalizeNumber(value: any): number | null {
 /**
  * Safely parse an integer value, returning a fallback if the value is NaN.
  */
-export function safeParseInt(value: any, fallback = 0): number {
-  const parsed = parseInt(value);
+export function safeParseInt(value: unknown, fallback = 0): number {
+  const parsed = parseInt(String(value));
   return isNaN(parsed) ? fallback : parsed;
 }
 
 /**
  * Safely parse a float value, returning a fallback if the value is NaN.
  */
-export function safeParseFloat(value: any, fallback = 0): number {
-  const parsed = parseFloat(value);
+export function safeParseFloat(value: unknown, fallback = 0): number {
+  const parsed = parseFloat(String(value));
   return isNaN(parsed) ? fallback : parsed;
 }
 

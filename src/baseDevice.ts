@@ -12,6 +12,7 @@ export interface DeviceControlPayload {
   dataValue: unknown;
   dataSetList?: Record<string, unknown> | null;
   dataGetList?: Record<string, unknown> | null;
+  [key: string]: unknown;
 }
 
 export type AccessoryContext = {
@@ -48,7 +49,7 @@ export class BaseDevice extends EventEmitter {
     this._lastSnapshotVersion++;
   }
 
-  public update(snapshot: any) {
+  public update(snapshot: Record<string, unknown>) {
     this.platform.log.debug('[' + this.accessory.context.device.name + '] Received snapshot: ', JSON.stringify(snapshot));
     this.accessory.context.device.data.snapshot = { ...this.accessory.context.device.snapshot, ...snapshot };
     this.updateAccessoryCharacteristic(this.accessory.context.device);
@@ -57,10 +58,12 @@ export class BaseDevice extends EventEmitter {
   /**
    * Get device configuration merged with defaults from DeviceRegistry
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public get config(): Record<string, any> {
     const deviceType = this.accessory.context.device.type;
     const defaults = DeviceRegistry.getConfigDefaults(deviceType);
     const userConfig = this.platform.config.devices?.find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (enabled: Record<string, any>) => enabled.id === this.accessory.context.device.id,
     ) || {};
     return { ...defaults, ...userConfig };
@@ -76,6 +79,7 @@ export class BaseDevice extends EventEmitter {
    * @returns Cached Status instance
    */
   protected getStatus<T>(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     StatusClass: new (data: any, model: any) => T,
     snapshotKey?: string,
   ): T {
@@ -201,7 +205,8 @@ export class BaseDevice extends EventEmitter {
   protected updateSnapshotValue(path: string, value: unknown): void {
     const device = this.accessory.context.device;
     const keys = path.split('.');
-    let obj: any = device.data.snapshot;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let obj: Record<string, any> = device.data.snapshot;
 
     // Navigate to the parent of the target key
     for (let i = 0; i < keys.length - 1; i++) {

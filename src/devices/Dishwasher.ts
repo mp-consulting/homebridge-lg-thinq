@@ -771,10 +771,10 @@ export default class Dishwasher extends BaseDevice {
       this.showTime ? this.platform.Characteristic.CurrentVisibilityState.SHOWN : this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
   }
 
-  public update(snapshot: any) {
+  public update(snapshot: Record<string, unknown>) {
     super.update(snapshot);
 
-    const dishwasher = snapshot.dishwasher;
+    const dishwasher = snapshot.dishwasher as Record<string, unknown> | undefined;
     if (!dishwasher) {
       return;
     }
@@ -788,7 +788,7 @@ export default class Dishwasher extends BaseDevice {
       } = this.platform;
 
       // detect if washer program in done
-      if ((['END'].includes(dishwasher.state)) || (this.isRunning && !this.Status.isRunning)) {
+      if ((['END'].includes(dishwasher.state as string)) || (this.isRunning && !this.Status.isRunning)) {
         this.serviceEventFinished.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_DETECTED);
         this.isRunning = false; // marked device as not running
 

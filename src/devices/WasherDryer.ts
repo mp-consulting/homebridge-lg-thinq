@@ -126,10 +126,10 @@ export default class WasherDryer extends BaseDevice {
     }
   }
 
-  public update(snapshot: any) {
+  public update(snapshot: Record<string, unknown>) {
     super.update(snapshot);
 
-    const washerDryer = snapshot.washerDryer;
+    const washerDryer = snapshot.washerDryer as Record<string, unknown> | undefined;
     if (!washerDryer) {
       return;
     }
@@ -145,8 +145,8 @@ export default class WasherDryer extends BaseDevice {
       && ('preState' in washerDryer || 'processState' in washerDryer) && 'state' in washerDryer) {
 
       // detect if washer program in done
-      if ((['END', 'COOLDOWN'].includes(washerDryer.state)
-          && !NOT_RUNNING_STATUS.includes(washerDryer.preState || washerDryer.processState))
+      if ((['END', 'COOLDOWN'].includes(washerDryer.state as string)
+          && !NOT_RUNNING_STATUS.includes((washerDryer.preState || washerDryer.processState) as string))
           || (this.isRunning && !this.Status.isRunning)) {
         this.serviceEventFinished.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_DETECTED);
         this.isRunning = false; // marked device as not running

@@ -38,6 +38,7 @@ import type { Logger } from 'homebridge';
  * @param logger - The logger instance for logging debug and error messages.
  */
 export class API {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _homes: any;
   protected _gateway: Gateway | undefined;
   protected session: Session = new Session('', '', 0);
@@ -81,7 +82,7 @@ export class API {
    * @param data - The data to include in the POST request.
    * @returns A promise resolving to the response data.
    */
-  async postRequest(uri: string, data: any) {
+  async postRequest(uri: string, data: Record<string, unknown>) {
     return await this.request('post', uri, data);
   }
 
@@ -99,7 +100,8 @@ export class API {
    * @param retry - Whether to retry the request in case of token expiration.
    * @returns A promise resolving to the response data.
    */
-  protected async request(method: Method | undefined, uri: string, data?: any, retry = false): Promise<any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected async request(method: Method | undefined, uri: string, data?: Record<string, unknown>, retry = false): Promise<any> {
     const gateway = await this.gateway();
     // Determine the appropriate headers based on the URI
     const requestHeaders = (gateway.thinq1_url && uri.startsWith(gateway.thinq1_url))
@@ -132,8 +134,8 @@ export class API {
         try {
           await this.auth.handleNewTerm(this.session.accessToken);
           this.logger.warn('LG new term agreement is accepted.');
-        } catch (termErr: any) {
-          this.logger.error(termErr);
+        } catch (termErr: unknown) {
+          this.logger.error(String(termErr));
         }
 
         if (!retry) {
@@ -229,6 +231,7 @@ export class API {
    */
   public async getListDevices() {
     const homes = await this.getListHomes();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const devices: Record<string, any>[] = [];
 
     // Retrieve devices for each home
@@ -267,7 +270,7 @@ export class API {
    */
   public async sendCommandToDevice(
     device_id: string,
-    values: Record<string, any>,
+    values: Record<string, unknown>,
     command: 'Set' | 'Operation',
     ctrlKey = 'basicCtrl',
     ctrlPath = 'control-sync',
@@ -406,7 +409,7 @@ export class API {
     this.jsessionId = await this.auth.getJSessionId(this.session.accessToken);
   }
 
-  async thinq1PostRequest(endpoint: string, data: any) {
+  async thinq1PostRequest(endpoint: string, data: Record<string, unknown>) {
     const response = await this.postRequest(this._gateway?.thinq1_url + endpoint, {
       lgedmRoot: data,
     });

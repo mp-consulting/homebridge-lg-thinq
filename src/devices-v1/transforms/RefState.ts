@@ -6,8 +6,8 @@ export enum DoorOpenState {
   CLOSE = 'CLOSE',
 }
 
-export default function RefState(deviceModel: DeviceModel, decodedMonitor: any) {
-  const snapshot: Record<string, any> = {
+export default function RefState(deviceModel: DeviceModel, decodedMonitor: Record<string, unknown>) {
+  const snapshot: Record<string, Record<string, unknown>> = {
     refState: {
       fridgeTemp: decodedMonitor.TempRefrigerator || deviceModel.default('TempRefrigerator') || '0',
       freezerTemp: decodedMonitor.TempFreezer || deviceModel.default('TempFreezer') || '0',

@@ -99,8 +99,8 @@ export default class Refrigerator extends BaseDevice {
       },
     } = this.platform;
 
-    const tempBetween = (props: any, value: number) => {
-      return Math.min(Math.max(props.minValue, value), props.maxValue);
+    const tempBetween = (props: { minValue?: number; maxValue?: number }, value: number) => {
+      return Math.min(Math.max(props.minValue ?? value, value), props.maxValue ?? value);
     };
 
     if (this.serviceFreezer) {
@@ -320,6 +320,7 @@ export default class Refrigerator extends BaseDevice {
 }
 
 export class RefrigeratorStatus {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(protected data: any, protected deviceModel: DeviceModel) {
   }
 
@@ -377,6 +378,7 @@ export class RefrigeratorStatus {
   }
 
   public hasFeature(key: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const visibleItem = this.deviceModel.data.Config?.visibleItems?.find((item: any) => item.Feature === key || item.feature === key);
     if (!visibleItem) {
       return false;

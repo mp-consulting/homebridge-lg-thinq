@@ -32,8 +32,8 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
   private readonly enable_thinq1: boolean = false;
 
   // This is only required when using Custom Services and Characteristics not support by HomeKit
-  public readonly CustomServices: any;
-  public readonly CustomCharacteristics: any;
+  public readonly CustomServices!: Record<string, unknown>;
+  public readonly CustomCharacteristics!: Record<string, unknown>;
 
   constructor(
     public readonly log: Logging,
@@ -143,7 +143,7 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
       }
 
       // Skip devices not explicitly enabled in the configuration
-      if (this.config.devices.length && !this.config.devices.find((enabled: any) => enabled.id === device.id)) {
+      if (this.config.devices.length && !this.config.devices.find((enabled: Record<string, unknown>) => enabled.id === device.id)) {
         this.log.info('Device skipped: ', device.id);
         continue;
       }
@@ -229,7 +229,8 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
       this.log.info('Start MQTT listener for ThinQ2 devices');
       await this.ThinQ.registerMQTTListener((data) => {
         if ('data' in data && 'deviceId' in data) {
-          this.events.emit(data.deviceId, data.data?.state?.reported);
+          const payload = data.data as Record<string, Record<string, unknown>> | undefined;
+          this.events.emit(data.deviceId as string, payload?.state?.reported);
         }
       });
     }

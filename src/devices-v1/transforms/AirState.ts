@@ -9,8 +9,8 @@ export enum ACOperation {
   ALL_ON = '@AC_MAIN_OPERATION_ALL_ON_W',
 }
 
-export default function AirState(deviceModel: DeviceModel, decodedMonitor: any) {
-  const airState: Record<string, any> = {
+export default function AirState(deviceModel: DeviceModel, decodedMonitor: Record<string, unknown>) {
+  const airState: Record<string, unknown> = {
     'airState.opMode': safeParseInt(decodedMonitor.OpMode),
     'airState.operation': loopupEnum(deviceModel, decodedMonitor, 'Operation') !== ACOperation.OFF,
     'airState.tempState.current': safeParseFloat(decodedMonitor.TempCur),
@@ -28,12 +28,12 @@ export default function AirState(deviceModel: DeviceModel, decodedMonitor: any) 
 
   if (deviceModel.value('TempCur')) {
 
-    airState['airState.tempState.current'] = Math.max(airState['airState.tempState.current'], (deviceModel.value('TempCur') as RangeValue).min);
+    airState['airState.tempState.current'] = Math.max(airState['airState.tempState.current'] as number, (deviceModel.value('TempCur') as RangeValue).min);
   }
 
   if (deviceModel.value('TempCfg')) {
 
-    airState['airState.tempState.target'] = Math.max(airState['airState.tempState.target'], (deviceModel.value('TempCfg') as RangeValue).min);
+    airState['airState.tempState.target'] = Math.max(airState['airState.tempState.target'] as number, (deviceModel.value('TempCfg') as RangeValue).min);
   }
 
   if (decodedMonitor.TotalAirPolution) {

@@ -15,7 +15,7 @@ export default class Helper {
   /**
    * transform device from thinq1 to thinq2 compatible (with snapshot data)
    */
-  public static transform(device: Device, monitorData: any) {
+  public static transform(device: Device, monitorData: Buffer<ArrayBuffer> | null) {
     const decodedMonitor = device.deviceModel.decodeMonitor(monitorData || {});
 
     switch (device.type) {
@@ -53,8 +53,8 @@ export default class Helper {
     return device;
   }
 
-  public static prepareControlData(device: Device, key: string, value: string) {
-    const data: any = {
+  public static prepareControlData(device: Device, key: string, value: string | number) {
+    const data: Record<string, unknown> = {
       cmd: 'Control',
       cmdOpt: 'Set',
       deviceId: device.id,
@@ -98,16 +98,16 @@ export default class Helper {
   }
 }
 
-export function lookupEnumIndex(enumType: any, value: any) {
-  return Object.keys(enumType)[Object.values(enumType).indexOf(<any> value)];
+export function lookupEnumIndex(enumType: Record<string, string>, value: string | number | null) {
+  return Object.keys(enumType)[Object.values(enumType).indexOf(String(value))];
 }
 
-export function loopupEnum(deviceModel: DeviceModel, decodedMonitor: any, key: any) {
+export function loopupEnum(deviceModel: DeviceModel, decodedMonitor: Record<string, unknown>, key: string) {
   if (!(key in decodedMonitor)) {
     return null;
   }
 
-  return deviceModel.enumName(key, decodedMonitor[key]);
+  return deviceModel.enumName(key, String(decodedMonitor[key]));
 }
 
 export { normalizeBoolean, normalizeNumber, safeParseInt, safeParseFloat } from '../utils/normalize.js';

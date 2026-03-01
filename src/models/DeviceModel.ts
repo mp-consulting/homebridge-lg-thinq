@@ -9,6 +9,7 @@ export enum ValueType {
 export interface ModelDataValue {
   type: string;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 
@@ -39,11 +40,13 @@ export interface ModelData {
     [key: string]: MonitoringValue;
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 
 export interface BitValue {
   type: ValueType.Bit;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   options: any;
 }
 
@@ -61,6 +64,7 @@ export interface RangeValue {
 
 export interface ReferenceValue {
   type: ValueType.Reference;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reference: any;
 }
 
@@ -194,8 +198,8 @@ export class DeviceModel {
        * 			}
        *    ]
        */
-      } else if (protocol.constructor.name === 'Array' && protocol.find((p: any) => p.superSet === name) !== undefined) {
-        data = this.data.Value[protocol.find((p: any) => p.superSet === name).value];
+      } else if (protocol.constructor.name === 'Array' && protocol.find((p: { superSet?: string }) => p.superSet === name) !== undefined) {
+        data = this.data.Value[protocol.find((p: { superSet?: string; value: string }) => p.superSet === name).value];
       }
     }
 
@@ -221,8 +225,10 @@ export class DeviceModel {
         } as RangeValue;
 
       case 'bit': {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const bitValues = Object.values(data.option).reduce((obj: any, value) => ({
           ...obj,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           [(value as any).startbit]: (value as any).values,
         }), {});
         return { type: ValueType.Bit, options: bitValues } as BitValue;
@@ -359,7 +365,7 @@ export class DeviceModel {
       return null;
     }
 
-    const getKeyByValue = (obj: any, value: string) => Object.keys(obj).find(k => obj[k].label === value);
+    const getKeyByValue = (obj: Record<string, { label: string }>, value: string) => Object.keys(obj).find(k => obj[k].label === value);
 
     return getKeyByValue(this.monitoringValue[key].valueMapping, label) || null;
   }
@@ -370,6 +376,7 @@ export class DeviceModel {
    * @param data - The raw monitoring data to decode.
    * @returns The decoded monitoring data.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public decodeMonitor(data: any) {
     if (this.data.Monitoring?.type === 'BINARY(BYTE)') {
       return this.decodeMonitorBinary(data);
@@ -391,7 +398,9 @@ export class DeviceModel {
    * @param length - The length of each binary segment (default: 8).
    * @returns The decoded monitoring data.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private decodeMonitorBinary(data: any, length = 8) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const decoded: Record<string, any> = {};
 
     for (const item of this.data.Monitoring.protocol) {

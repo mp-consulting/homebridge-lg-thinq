@@ -54,7 +54,7 @@ export class Auth {
    * @param extra_headers - Optional additional headers for the request.
    * @returns A promise that resolves with a `Session` instance.
    */
-  public async loginStep2(username: string, encrypted_password: string, extra_headers?: any) {
+  public async loginStep2(username: string, encrypted_password: string, extra_headers?: Record<string, string>) {
     const headers: Record<string, string> = this.defaultEmpHeaders;
 
     const preLoginData = {
@@ -80,12 +80,13 @@ export class Auth {
     try {
       const loginResponse = await requestClient.post(loginUrl, qs.stringify(data), { headers });
       account = loginResponse.data.account;
-    } catch (err: any) {
-      if (!err.response) {
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data: { error: { code: string; message: string } } } };
+      if (!axiosErr.response) {
         throw err;
       }
 
-      const { code, message } = err.response.data.error;
+      const { code, message } = axiosErr.response.data.error;
       if (code === 'MS.001.03') {
         throw new AuthenticationError('Your account was already used to registered in ' + message + '.');
       }
@@ -130,8 +131,9 @@ export class Auth {
     try {
       const authorizeResponse = await requestClient.get(empUrl.href, { headers: empHeaders });
       authorize = authorizeResponse.data;
-    } catch (err: any) {
-      throw new AuthenticationError(err.response.data.error.message);
+    } catch (err: unknown) {
+      const axiosErr = err as { response: { data: { error: { message: string } } } };
+      throw new AuthenticationError(axiosErr.response.data.error.message);
     }
     if (authorize.status !== 1) {
       throw new TokenError(authorize.message || authorize);
@@ -212,7 +214,7 @@ export class Auth {
 
     const accountTermUrl = 'emp/v2.0/account/user/terms?opt_term_cond=001&term_data=SVC202&itg_terms_use_flag=Y&dummy_terms_use_flag=Y';
     const accountTermResponse = await requestClient.get(this.gateway.emp_base_url + accountTermUrl, { headers });
-    const accountTerms = (accountTermResponse.data.account?.terms || []).map((term: any) => {
+    const accountTerms = (accountTermResponse.data.account?.terms || []).map((term: { termsID: string }) => {
       return term.termsID;
     });
 
@@ -220,9 +222,9 @@ export class Auth {
     const termInfoResponse = await requestClient.get(this.gateway.emp_base_url + termInfoUrl, { headers });
     const infoTerms = termInfoResponse.data.info.terms;
 
-    const newTermAgreeNeeded = infoTerms.filter((term: any) => {
+    const newTermAgreeNeeded = infoTerms.filter((term: { termsID: string }) => {
       return accountTerms.indexOf(term.termsID) === -1;
-    }).map((term: any) => {
+    }).map((term: { termsType: string; termsID: string; defaultLang: string }) => {
       return [term.termsType, term.termsID, term.defaultLang].join(':');
     }).join(',');
 
@@ -261,14 +263,15 @@ export class Auth {
         headers: memberLoginHeaders,
       });
       return memberLoginResponse.data.lgedmRoot.jsessionId;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       this.logger.debug(
-        err.message.startsWith(ManualProcessNeededErrorCode)
+        error.message.startsWith(ManualProcessNeededErrorCode)
           ? 'Please open the native LG App and sign in to your account to see what happened,'
           + ' maybe new agreement need your accept. Then try restarting Homebridge.'
-          : err.message,
+          : error.message,
       );
-      this.logger.debug(err);
+      this.logger.debug(String(err));
       this.logger.info('Failed to login to old thinq v1 gateway. See debug logs for more details. Continuing anyways.');
     }
   }

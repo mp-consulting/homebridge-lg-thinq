@@ -20,7 +20,7 @@ export default class Persist {
   /**
    * The `node-persist` instance used for managing storage.
    */
-  protected persist: any | null = null;
+  protected persist: ReturnType<typeof NodePersist.create> | null = null;
   protected dir: string;
 
   /**
@@ -127,13 +127,13 @@ export default class Persist {
       await this.init();
     }
     try {
-      return await this.persist.getItem(key);
+      return await this.persist!.getItem(key);
     } catch (err) {
       try {
         const p = Path.join(this.dir, key);
         const raw = await Fs.readFile(p, { encoding: 'utf8' });
         const parsed = JSON.parse(raw);
-        await this.persist.setItem(key, parsed).catch(() => {});
+        await this.persist!.setItem(key, parsed).catch(() => {});
         await Fs.rename(p, p + '.migrated.' + Date.now()).catch(() => {});
         return parsed;
       } catch (e) {
@@ -149,11 +149,11 @@ export default class Persist {
    * @param value - The value to store.
    * @returns A promise that resolves when the item is stored.
    */
-  async setItem(key: string, value: any) {
+  async setItem(key: string, value: unknown) {
     if (!this.persist) {
       await this.init();
     }
-    return await this.persist.setItem(key, value);
+    return await this.persist!.setItem(key, value);
   }
 
   /**
@@ -163,7 +163,7 @@ export default class Persist {
    * @param callable - A function that returns a promise resolving to the value to cache.
    * @returns A promise that resolves with the cached value.
    */
-  async cacheForever(key: string, callable: () => Promise<any>) {
+  async cacheForever<T>(key: string, callable: () => Promise<T>): Promise<T> {
     let value = await this.getItem(key);
     if (!value) {
       value = await callable();
@@ -180,7 +180,7 @@ export default class Persist {
    * @param callable - A function that returns a promise resolving to the value to cache.
    * @returns A promise that resolves with the cached value.
    */
-  async cache(key: string, ttl: number, callable: () => Promise<any>) {
+  async cache<T>(key: string, ttl: number, callable: () => Promise<T>): Promise<T> {
     let value = await this.getWithExpiry(key);
     if (!value) {
       value = await callable();
@@ -197,7 +197,7 @@ export default class Persist {
    * @param ttl - The time-to-live for the item, in milliseconds.
    * @returns A promise that resolves when the item is stored.
    */
-  async setWithExpiry(key: string, value: any, ttl: number) {
+  async setWithExpiry(key: string, value: unknown, ttl: number) {
     const item = {
       value: value,
       expiry: Date.now() + ttl,
@@ -239,7 +239,7 @@ export default class Persist {
       await this.init();
     }
     try {
-      return await this.persist.removeItem(key);
+      return await this.persist!.removeItem(key);
     } catch (err) {
       const p = Path.join(this.dir, key);
       await Fs.unlink(p).catch(() => {});

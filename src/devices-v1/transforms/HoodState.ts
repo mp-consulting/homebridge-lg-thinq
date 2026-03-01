@@ -1,11 +1,11 @@
 import type { DeviceModel } from '../../models/DeviceModel.js';
 import { safeParseInt } from '../helper.js';
 
-export default function HoodState(deviceModel: DeviceModel, decodedMonitor: any) {
+export default function HoodState(deviceModel: DeviceModel, decodedMonitor: Record<string, unknown>) {
   return {
     hoodState: {
-      'ventMode': deviceModel.enumName('VentMode', decodedMonitor.VentMode),
-      'error': deviceModel.enumName('Error', decodedMonitor.VentMode),
+      'ventMode': deviceModel.enumName('VentMode', String(decodedMonitor.VentMode)),
+      'error': deviceModel.enumName('Error', String(decodedMonitor.VentMode)),
       'ventLevel': safeParseInt(decodedMonitor.VentLevel),
       'lampSet': decodedMonitor.LampSet,
       'remainTimeMinute': safeParseInt(decodedMonitor.TimerMin),

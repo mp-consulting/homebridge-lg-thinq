@@ -1173,6 +1173,7 @@ export default class AirConditioner extends BaseDevice {
 }
 
 export class ACStatus {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(protected data: any, protected device: Device, protected config: Config, private logger: Logger) {
   }
 

@@ -1,9 +1,9 @@
 declare module 'homebridge-lib/EveHomeKitTypes' {
   export class EveHomeKitTypes {
-    constructor(homebridge: any);
+    constructor(homebridge: unknown);
 
-    Characteristics: Record<string, any>;
-    Services: Record<string, any>;
+    Characteristics: Record<string, unknown>;
+    Services: Record<string, unknown>;
   }
 }
 

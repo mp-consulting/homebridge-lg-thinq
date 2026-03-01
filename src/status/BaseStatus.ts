@@ -22,7 +22,9 @@ export abstract class BaseStatus {
   ) {}
 
   /** Raw data access for subclasses that need direct field access */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public get data(): Record<string, any> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (this._data as Record<string, any>) || {};
   }
 

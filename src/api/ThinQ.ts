@@ -90,7 +90,7 @@ export class ThinQ {
     }
   }
 
-  protected async registerWorkId(device: any) {
+  protected async registerWorkId(device: Device) {
     const data = await this.api.sendMonitorCommand(device.id, 'Start', randomUUID());
     if (data !== undefined && 'workId' in data) {
       this.workIds[device.id] = data.workId;
@@ -166,6 +166,7 @@ export class ThinQ {
     return device;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public thinq1DeviceControl(device: Device, key: string, value: any) {
     const data = Helper.prepareControlData(device, key, value);
 
@@ -175,12 +176,12 @@ export class ThinQ {
   }
 
   public async deviceControl(
-    device: string | Device, values: Record<string, any>,
+    device: string | Device, values: Record<string, unknown>,
     command: 'Set' | 'Operation' = 'Set', ctrlKey = 'basicCtrl', ctrlPath = 'control-sync') {
     const id = device instanceof Device ? device.id : device;
     const model: DeviceModel | undefined = this.deviceModel[id];
 
-    const coerceValue = (k: string, v: any) => {
+    const coerceValue = (k: string, v: unknown): unknown => {
       if (!model) {
         return v;
       }
@@ -229,26 +230,27 @@ export class ThinQ {
     if (values && typeof values === 'object') {
       if ('dataKey' in values && values.dataKey && 'dataValue' in values) {
         try {
-          values.dataValue = coerceValue(values.dataKey, values.dataValue);
+          values.dataValue = coerceValue(values.dataKey as string, values.dataValue);
         } catch (e) {
           // ignore
         }
       }
       if ('dataSetList' in values && values.dataSetList && typeof values.dataSetList === 'object') {
-        for (const k of Object.keys(values.dataSetList)) {
-          values.dataSetList[k] = coerceValue(k, values.dataSetList[k]);
+        const dataSetList = values.dataSetList as Record<string, unknown>;
+        for (const k of Object.keys(dataSetList)) {
+          dataSetList[k] = coerceValue(k, dataSetList[k]);
         }
       }
     }
 
-    const normalizeBooleans = (obj: any) => {
+    const normalizeBooleans = (obj: Record<string, unknown>) => {
       if (obj && typeof obj === 'object') {
         for (const k of Object.keys(obj)) {
           const v = obj[k];
           if (typeof v === 'boolean') {
             obj[k] = v ? 1 : 0;
           } else if (v && typeof v === 'object') {
-            normalizeBooleans(v);
+            normalizeBooleans(v as Record<string, unknown>);
           }
         }
       }
@@ -265,7 +267,7 @@ export class ThinQ {
     }
   }
 
-  public async registerMQTTListener(callback: (data: any) => void) {
+  public async registerMQTTListener(callback: (data: Record<string, unknown>) => void) {
     const delayMs = (ms: number) => new Promise(res => setTimeout(res, ms));
 
     let tried = 5;
@@ -284,7 +286,7 @@ export class ThinQ {
     this.logger.error('Cannot start MQTT!');
   }
 
-  protected async _registerMQTTListener(callback: (data: any) => void) {
+  protected async _registerMQTTListener(callback: (data: Record<string, unknown>) => void) {
     const routeData = await this.api.getRequest('https://common.lgthinq.com/route');
     const route = routeData.result;
 

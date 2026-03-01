@@ -2154,7 +2154,7 @@ export default class Microwave extends BaseDevice {
 
   }
 
-  update(snapshot: any) {
+  update(snapshot: Record<string, unknown>) {
     super.update(snapshot);
     const oven = snapshot.oven;
 
@@ -2171,6 +2171,7 @@ export default class Microwave extends BaseDevice {
 }
 
 export class MicrowaveStatus {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(public data: any, protected deviceModel: DeviceModel) { }
 
   getState(key: string) {
