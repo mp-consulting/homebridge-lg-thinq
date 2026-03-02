@@ -7,7 +7,7 @@
     "name": "Mickael Palma",
     "email": "mickael.palma@mac.com"
   },
-  "license": "MIT",
+  "license": "(Apache-2.0 AND MIT)",
   "funding": {
     "type": "paypal",
     "url": "https://paypal.me/mickaelpalma"

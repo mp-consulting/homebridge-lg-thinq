@@ -10,6 +10,8 @@
 [![npm](https://img.shields.io/npm/dt/homebridge-lg-thinq)](https://www.npmjs.com/package/homebridge-lg-thinq)
 [![join-discord](https://badgen.net/badge/icon/discord?icon=discord&label=homebridge-lg-thinq)](https://discord.gg/wEfQpCDtS7)
 
+> Originally based on [homebridge-lg-thinq](https://github.com/nVuln/homebridge-lg-thinq) by [nVuln](https://github.com/nVuln), licensed under the Apache License 2.0. This fork has been substantially rewritten by [MP Consulting](https://github.com/mp-consulting).
+
 ## Overview
 
 A Homebridge plugin for controlling/monitoring LG ThinQ device via their ThinQ platform.
