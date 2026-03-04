@@ -1,5 +1,18 @@
 # Change Log
 
+## v1.0.12
+
+### Improvements
+
+* Redesign config UI with homebridge-ui-kit design system
+  - Migrate to Bootstrap 5.3 with shared kit (CSS + JS)
+  - Active session detection with subtle animated progress bar while loading
+  - Replace success banner with device count badge in card header
+  - Per-device settings panel (gear icon): display name, serial number, type-specific fields
+  - AC settings: mode selects, Controls / Sensors in side-by-side columns, ac_buttons editor with named op_mode select (Cool, Dry, Fan, Heat, Air Clean, Auto)
+  - Settings tab: auth mode, refresh token, country, language, ThinQ1 toggle, refresh interval
+  - All schema fields now editable in the custom UI
+
 ## v1.0.11
 
 ### Bug fixes
