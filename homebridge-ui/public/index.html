@@ -1,126 +1,243 @@
-<link rel="stylesheet" href="styles.css">
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LG ThinQ</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="lib/kit.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container py-4">
 
-<div class="lg-header">
-  <h2>LG ThinQ</h2>
-  <p class="text-muted">Homebridge plugin to integrate LG ThinQ devices into HomeKit</p>
-</div>
-
-<!-- Step 1: Login -->
-<div id="step-login" class="step-container">
-  <div class="step-header">
-    <div class="step-number">1</div>
-    <h3 class="step-title">Connect Your LG Account</h3>
-  </div>
-
-  <!-- Active session notice -->
-  <div id="active-session-notice" class="alert alert-info hidden">
-    <div class="d-flex justify-content-between align-items-center">
+    <div class="mp-header mb-4">
+      <span class="mp-header-icon" style="color: #c8102e;"><i class="bi bi-phone-fill"></i></span>
       <div>
-        <strong>Active Session Detected</strong>
-        <p class="mb-0 small">Using the existing session from Homebridge</p>
-      </div>
-      <button id="btn-new-login" class="btn btn-sm btn-outline-primary">Login with Different Account</button>
-    </div>
-  </div>
-
-  <div class="card" id="login-form">
-    <div class="card-body">
-      <div class="mb-3">
-        <label for="country_language" class="form-label">Country / Language</label>
-        <select class="form-select" id="country_language"></select>
-        <div class="form-text">Select your LG account region</div>
-      </div>
-
-      <div class="mb-3">
-        <label for="username" class="form-label">Email</label>
-        <input type="text" class="form-control" id="username" placeholder="your@email.com">
-        <div class="form-text">Enter your LG ThinQ account email</div>
-      </div>
-
-      <div class="mb-3">
-        <label for="password" class="form-label">Password</label>
-        <input type="password" class="form-control" id="password" placeholder="••••••••">
-      </div>
-
-      <div class="form-check mb-3">
-        <input class="form-check-input" type="checkbox" id="rememberCredentials">
-        <label class="form-check-label" for="rememberCredentials">Remember username & password (optional)</label>
-      </div>
-
-      <button id="btn-login" class="btn btn-primary">
-        <span class="spinner-border spinner-border-sm hidden" id="login-spinner"></span>
-        Connect Account
-      </button>
-
-      <div class="wiki-link">
-        <p class="small text-muted mb-2">Using OAuth login (Facebook, Amazon, etc.)?</p>
-        <a href="https://github.com/mp-consulting/homebridge-lg-thinq/wiki/Plugin-Authorization-Setting" target="_blank">
-          View Plugin Authorization Wiki
-        </a>
+        <h1 class="mp-header-title">LG ThinQ</h1>
+        <p class="mp-header-subtitle">Connect your LG account to manage devices in HomeKit</p>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- Step 2: Devices -->
-<div id="step-devices" class="step-container hidden">
-  <div class="step-header">
-    <div class="step-number">2</div>
-    <h3 class="step-title">Your Devices</h3>
-  </div>
+    <!-- Step 1: Login -->
+    <div id="step-login" class="step-container">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <h3 class="step-title">Connect Your LG Account</h3>
+      </div>
 
-  <div class="alert alert-success mb-3" id="success-alert">
-    <strong>Success!</strong> Your LG account is connected. Found <span id="device-count">0</span> devices.
-  </div>
+      <div id="active-session-notice" class="alert alert-info d-none">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <strong>Active Session Detected</strong>
+            <p class="mb-0 small">Using the existing session from Homebridge</p>
+          </div>
+          <button id="btn-new-login" class="btn btn-sm btn-outline-primary">Login with Different Account</button>
+        </div>
+        <div id="session-loading" class="d-none mt-2">
+          <div class="progress" style="height:3px;" role="progressbar" aria-label="Loading devices">
+            <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+          </div>
+        </div>
+      </div>
 
-  <div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span>Discovered Devices</span>
-      <div>
-        <button id="btn-select-all" class="btn btn-sm btn-outline-secondary me-1">Select All</button>
-        <button id="btn-refresh" class="btn btn-sm btn-outline-secondary">
-          <span class="spinner-border spinner-border-sm hidden" id="refresh-spinner"></span>
-          Refresh
-        </button>
+      <div class="card border-0 shadow-sm" id="login-form">
+        <div class="card-body">
+          <div class="mb-3">
+            <label for="country_language" class="form-label">Country / Language</label>
+            <select class="form-select" id="country_language"></select>
+            <div class="form-text">Select your LG account region</div>
+          </div>
+
+          <div class="mb-3">
+            <label for="username" class="form-label">Email</label>
+            <input type="text" class="form-control" id="username" placeholder="your@email.com">
+            <div class="form-text">Enter your LG ThinQ account email</div>
+          </div>
+
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" placeholder="••••••••">
+          </div>
+
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="rememberCredentials">
+            <label class="form-check-label" for="rememberCredentials">Remember username &amp; password (optional)</label>
+          </div>
+
+          <button id="btn-login" class="btn btn-primary">
+            <span class="spinner-border spinner-border-sm d-none me-1" id="login-spinner" aria-hidden="true"></span>
+            Connect Account
+          </button>
+
+          <div class="wiki-link mt-3">
+            <p class="small text-body-secondary mb-2">Using OAuth login (Facebook, Amazon, etc.)?</p>
+            <a href="https://github.com/mp-consulting/homebridge-lg-thinq/wiki/Plugin-Authorization-Setting" target="_blank" rel="noopener">
+              View Plugin Authorization Wiki
+            </a>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="card-body device-list" id="device-list">
-      <!-- Devices will be populated here -->
-    </div>
-    <div class="card-footer text-muted small">
-      Select devices to add to HomeKit. Use "Advanced Settings" to configure device-specific options.
-    </div>
-  </div>
 
-  <div class="card mb-3">
-    <div class="card-header">Plugin Settings</div>
-    <div class="card-body">
-      <div class="form-check mb-2">
-        <input class="form-check-input" type="checkbox" id="thinq1">
-        <label class="form-check-label" for="thinq1">Enable ThinQ1 support (older devices)</label>
+    <!-- Step 2: Devices -->
+    <div id="step-devices" class="step-container d-none">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <h3 class="step-title">Your Devices</h3>
+      </div>
+
+      <!-- Tabs -->
+      <ul class="nav mp-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-devices" data-bs-toggle="tab" data-bs-target="#pane-devices" type="button" role="tab">
+            <i class="bi bi-grid me-1"></i>Devices
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-settings" data-bs-toggle="tab" data-bs-target="#pane-settings" type="button" role="tab">
+            <i class="bi bi-gear me-1"></i>Settings
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+
+        <!-- Devices tab -->
+        <div class="tab-pane fade show active" id="pane-devices" role="tabpanel">
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center py-3">
+              <h5 class="mb-0"><i class="bi bi-grid me-2"></i>Discovered Devices <span id="device-count" class="badge bg-secondary ms-1">0</span></h5>
+              <div class="d-flex gap-2">
+                <button id="btn-select-all" class="btn btn-outline-secondary btn-sm">Select All</button>
+                <button id="btn-refresh" class="btn btn-outline-secondary btn-sm">
+                  <span class="spinner-border spinner-border-sm d-none me-1" id="refresh-spinner" aria-hidden="true"></span>
+                  <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                </button>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="device-list" id="device-list"></div>
+            </div>
+            <div class="card-footer text-body-secondary small">
+              Check devices to include in HomeKit. Click <i class="bi bi-gear"></i> to configure a device.
+            </div>
+          </div>
+
+          <!-- Per-device settings panel -->
+          <div id="device-settings-panel" class="card border-0 shadow-sm mb-4 d-none">
+            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center py-3">
+              <h5 class="mb-0" id="device-settings-title"><i class="bi bi-gear me-2"></i>Device Settings</h5>
+              <button class="btn btn-link text-body-secondary p-0" id="btn-close-device-settings">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <div class="card-body" id="device-settings-content"></div>
+            <div class="card-footer d-flex justify-content-end gap-2">
+              <button class="btn btn-outline-secondary btn-sm" id="btn-cancel-device-settings">Cancel</button>
+              <button class="btn btn-primary btn-sm" id="btn-apply-device-settings">
+                <i class="bi bi-check-lg me-1"></i>Apply
+              </button>
+            </div>
+          </div>
+
+          <button id="btn-save" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Configuration</button>
+        </div>
+
+        <!-- Settings tab -->
+        <div class="tab-pane fade" id="pane-settings" role="tabpanel">
+
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-bottom py-3">
+              <h5 class="mb-0"><i class="bi bi-shield-lock me-2"></i>Authentication</h5>
+            </div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label class="form-label" for="settings-auth-mode">Auth Mode</label>
+                <select class="form-select" id="settings-auth-mode">
+                  <option value="account">LG Account (username &amp; password)</option>
+                  <option value="token">Token</option>
+                </select>
+              </div>
+              <div id="settings-token-group">
+                <label class="form-label" for="settings-refresh-token">Refresh Token</label>
+                <input type="text" class="form-control font-monospace" id="settings-refresh-token" placeholder="Paste your refresh token">
+              </div>
+            </div>
+          </div>
+
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-bottom py-3">
+              <h5 class="mb-0"><i class="bi bi-globe me-2"></i>Region</h5>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label" for="settings-country">Country</label>
+                  <input type="text" class="form-control" id="settings-country" placeholder="US">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="settings-language">Language</label>
+                  <input type="text" class="form-control" id="settings-language" placeholder="en-US">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-transparent border-bottom py-3">
+              <h5 class="mb-0"><i class="bi bi-arrow-repeat me-2"></i>Sync</h5>
+            </div>
+            <div class="card-body">
+              <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="settings-thinq1">
+                <label class="form-check-label" for="settings-thinq1">Enable ThinQ1 support</label>
+                <div class="form-text">Enable legacy ThinQ v1 device support (polling-based).</div>
+              </div>
+              <label class="form-label" for="settings-refresh-interval">Refresh Interval (seconds)</label>
+              <input type="number" class="form-control" id="settings-refresh-interval" min="1" style="max-width: 140px;">
+              <div class="form-text">How often to poll ThinQ1 device status. Default: 60s.</div>
+            </div>
+          </div>
+
+          <button id="btn-save-settings" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Configuration</button>
+        </div>
+
       </div>
     </div>
+
+    <!-- Step 3: Complete -->
+    <div id="step-complete" class="step-container d-none">
+      <div class="step-header">
+        <div class="step-number step-number-success"><i class="bi bi-check-lg"></i></div>
+        <h3 class="step-title">Configuration Complete</h3>
+      </div>
+
+      <div class="alert alert-success mb-3">
+        <strong>All done!</strong> Your LG ThinQ plugin is configured. Please restart Homebridge to apply the changes.
+      </div>
+
+      <div id="restart-btn-container">
+        <button id="btn-restart" class="btn btn-warning"><i class="bi bi-arrow-repeat me-1"></i>Restart Homebridge</button>
+      </div>
+    </div>
+
+    <div class="mp-footer">
+      <a href="https://github.com/mp-consulting/homebridge-lg-thinq" target="_blank" rel="noopener">
+        <i class="bi bi-github"></i>GitHub
+      </a>
+      <span class="mp-footer-sep">|</span>
+      <a href="https://www.npmjs.com/package/@mp-consulting/homebridge-lg-thinq" target="_blank" rel="noopener">
+        <i class="bi bi-box-seam"></i>npm
+      </a>
+    </div>
+
   </div>
 
-  <div class="d-flex gap-2">
-    <button id="btn-save" class="btn btn-success">Save Configuration</button>
-    <button id="btn-schema" class="btn btn-outline-primary">Advanced Settings</button>
-  </div>
-</div>
-
-<!-- Step 3: Complete -->
-<div id="step-complete" class="step-container hidden">
-  <div class="step-header">
-    <div class="step-number" style="background-color: var(--bs-success);">✓</div>
-    <h3 class="step-title">Configuration Complete</h3>
-  </div>
-
-  <div class="alert alert-success">
-    <strong>All done!</strong> Your LG ThinQ plugin is configured. Please restart Homebridge to apply the changes.
-  </div>
-
-  <button id="btn-restart" class="btn btn-warning">Restart Homebridge</button>
-</div>
-
-<script src="js/countries.js"></script>
-<script src="js/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="lib/kit.js"></script>
+  <script src="js/countries.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

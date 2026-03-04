@@ -32,7 +32,8 @@
     "thinq": "./dist/cli.js"
   },
   "scripts": {
-    "build": "rimraf ./dist && tsc",
+    "copy:ui-kit": "mkdir -p homebridge-ui/public/lib && cp node_modules/@mp-consulting/homebridge-ui-kit/dist/kit.css homebridge-ui/public/lib/ && cp node_modules/@mp-consulting/homebridge-ui-kit/dist/kit.js homebridge-ui/public/lib/",
+    "build": "npm run copy:ui-kit && rimraf ./dist && tsc",
     "lint": "eslint . --max-warnings=0",
     "prepublishOnly": "npm run lint && npm run build",
     "watch": "npm run build && npm link && nodemon",
@@ -48,6 +49,7 @@
   ],
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@mp-consulting/homebridge-ui-kit": "^1.0.0",
     "@types/aws-iot-device-sdk": "^2.2.9",
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.0.0",
