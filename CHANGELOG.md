@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.13] - 2026-03-05
+
+### Fixed
+
+- **Config UI light mode**: Hardcoded `data-bs-theme="dark"` broke layout in light mode. Added early inline theme detection from `window.matchMedia` and confirmed via `homebridge.getUserSettings()` after ready.
+
 ## v1.0.12
 
 ### Improvements
