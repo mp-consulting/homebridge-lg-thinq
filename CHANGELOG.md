@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.14] - 2026-03-05
+
+### Changed
+
+- Removed "Homebridge" prefix from `displayName`
+
 ## [1.0.13] - 2026-03-05
 
 ### Fixed
