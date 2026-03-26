@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.0.15] - 2026-03-26
+
+### Changed
+
+- **Config UI**: Moved ui-kit assets to `homebridge-ui/public/lib/` subdirectory
+- **Dependencies**: Updated all dependencies to latest compatible versions
+
 ## [1.0.14] - 2026-03-05
 
 ### Changed
