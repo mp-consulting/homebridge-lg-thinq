@@ -1642,7 +1642,7 @@ export default class Microwave extends BaseDevice {
   OvenSubCookMenu(name: string) {
     if (this.Status.data?.LWOSubCookName !==
       0 && typeof this.Status.data?.LWOSubCookName !== 'undefined') {
-      let subCookCap = '';
+      let subCookCap: string;
       switch (this.Status.data?.LWOSubCookName) {
         case 3335:
           subCookCap = 'Buffalo Wings';
