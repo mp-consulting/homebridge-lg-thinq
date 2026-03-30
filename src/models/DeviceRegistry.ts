@@ -128,7 +128,7 @@ export class DeviceRegistry {
       type: 'DISHWASHER',
       v2Implementation: () => import('../devices/Dishwasher.js').then(m => m.default),
       v1Implementation: () => null,
-      homeKitCategory: 1, // Sprinkler
+      homeKitCategory: Categories.SPRINKLER,
       snapshotKey: 'dishwasher',
       configDefaults: { dishwasher_trigger: false },
     }],

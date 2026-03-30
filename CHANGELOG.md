@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.16] - 2026-03-30
+
+### Fixed
+
+- **Dishwasher**: Fix dishwasher appearing as TV in HomeKit ([#1](https://github.com/mp-consulting/homebridge-lg-thinq/issues/1)). The HomeKit category was set to `OTHER` (numeric `1`) instead of `SPRINKLER` (`28`), causing HomeKit to infer the category from the Television service used internally. Users may need to remove and re-add the dishwasher accessory for the icon to update.
+
 ## [1.0.15] - 2026-03-30
 
 ### Changed

@@ -86,6 +86,8 @@ npm i -g homebridge-lg-thinq
 | Oven           | ✔️ | ✔️ | ✔️ | ⚠️ | ⚠️ |
 | Microwave      | ✔️ | ✔️ | ✔️ | ⚠️ | ⚠️ |
 
+> **Note:** If your dishwasher previously appeared as a TV in HomeKit, update to v1.0.16+ and remove/re-add the accessory for the correct icon to appear.
+
 for more device support please open issue request.
 
 ## Contributors ✨
