@@ -1,11 +1,11 @@
 # Change Log
 
-## [1.0.15] - 2026-03-26
+## [1.0.15] - 2026-03-30
 
 ### Changed
 
 - **Config UI**: Moved ui-kit assets to `homebridge-ui/public/lib/` subdirectory
-- **Dependencies**: Updated all dependencies to latest compatible versions
+- **Dependencies**: Updated all dependencies to latest versions including `@homebridge/plugin-ui-utils` ^2.2.3, `axios` ^1.14.0, `commander` ^14.0.3, `homebridge-lib` ^7.3.2, `node-forge` ^1.4.0, `qs` ^6.15.0, `eslint` ^10.1.0, `typescript` ^6.0.2, `vitest` ^4.1.2, and other dev dependencies.
 
 ## [1.0.14] - 2026-03-05
 
