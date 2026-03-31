@@ -253,7 +253,7 @@ export default class Microwave extends BaseDevice {
     this.ovenService = this.accessory.getService(this.config.name) ||
       this.accessory.addService(this.platform.Service.Television, this.config.name, 'NicoCataGaTa-OvenOven7');
     this.ovenService.setCharacteristic(this.platform.Characteristic.ConfiguredName, 'LG Microwave Oven');
-    this.ovenService.setPrimaryService(true);
+    this.ovenService.setPrimaryService(false);
     this.ovenService.setCharacteristic(this.platform
       .Characteristic.SleepDiscoveryMode, this.platform.Characteristic.SleepDiscoveryMode.ALWAYS_DISCOVERABLE);
     this.ovenService.getCharacteristic(this.platform.Characteristic.Active)
@@ -643,6 +643,7 @@ export default class Microwave extends BaseDevice {
 
     this.ovenTimerService = this.accessory.getService('Microwave Cook Time') ||
       this.accessory.addService(this.platform.Service.Valve, 'Microwave Cook Time', 'NicoCataGaTa-OvenT2');
+    this.ovenTimerService.setPrimaryService(true);
     this.ovenTimerService.setCharacteristic(Characteristic.Name, 'Microwave Cook Time');
     this.ovenTimerService.addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
     this.ovenTimerService.setCharacteristic(this.platform.Characteristic.ConfiguredName, 'Microwave Cook Time');
