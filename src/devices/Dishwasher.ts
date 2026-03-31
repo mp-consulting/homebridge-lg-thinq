@@ -94,7 +94,7 @@ export default class Dishwasher extends BaseDevice {
     this.tvService = this.accessory.getService(this.config.name) ||
       this.accessory.addService(this.platform.Service.Television, this.config.name, 'CataNicoGaTa-70');
     this.tvService.setCharacteristic(this.platform.Characteristic.ConfiguredName, 'LG Dishwasher');
-    this.tvService.setPrimaryService(true);
+    this.tvService.setPrimaryService(false);
     this.tvService.setCharacteristic(this.platform
       .Characteristic.SleepDiscoveryMode, this.platform.Characteristic.SleepDiscoveryMode.ALWAYS_DISCOVERABLE);
     this.tvService.getCharacteristic(this.platform.Characteristic.Active)
@@ -177,6 +177,7 @@ export default class Dishwasher extends BaseDevice {
     this.tvService.addLinkedService(this.dishwasherCleanliness);
 
     this.serviceDishwasher = accessory.getService(Valve) || accessory.addService(Valve, 'LG Dishwasher');
+    this.serviceDishwasher.setPrimaryService(true);
     this.serviceDishwasher.setCharacteristic(Characteristic.Name, device.name);
     this.serviceDishwasher.addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
     this.serviceDishwasher.setCharacteristic(this.platform.Characteristic.ConfiguredName, device.name);
