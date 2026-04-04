@@ -1,5 +1,16 @@
 # Change Log
 
+## [1.0.20] - 2026-04-04
+
+### Fixed
+
+- **AC**: Clamp heating/cooling threshold temperature values after `setProps` to prevent HomeKit illegal value warnings on startup for devices with temperature floors above 16°C
+
+### Changed
+
+- **Node.js**: Add Node.js 24.x support to CI matrix and publish workflow
+- **AC**: Refactored threshold temperature setup into shared helper to reduce duplication
+
 ## [1.0.17] - 2026-03-30
 
 ### Changed
