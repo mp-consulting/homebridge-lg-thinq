@@ -62,6 +62,7 @@ homebridge-ui/                  # Custom config UI
 - **Device registry**: Maps device types to handler classes
 - **Snapshot-based updates** with hash-based cache invalidation
 - **Custom error hierarchy**: AuthenticationError, TokenError, MonitorError, etc.
+- **Custom UI**: Uses Homebridge custom UI framework (`homebridge-ui/`) for plugin configuration management
 
 ## Code Style
 
