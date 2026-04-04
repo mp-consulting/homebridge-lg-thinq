@@ -1,7 +1,7 @@
 import type { AccessoryContext } from '../baseDevice.js';
 import { BaseDevice } from '../baseDevice.js';
 import type { LGThinQHomebridgePlatform } from '../platform.js';
-import type { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
+import type { Characteristic as CharacteristicClass, CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
 import type { Device } from '../models/Device.js';
 import type { EnumValue, RangeValue } from '../models/DeviceModel.js';
 import { ValueType } from '../models/DeviceModel.js';
@@ -327,42 +327,32 @@ export default class AirConditioner extends BaseDevice {
     this.service.getCharacteristic(Characteristic.CurrentTemperature);
 
 
-    const targetHeatTemperature = status.getTemperatureRange(status.getTemperatureRangeForHeating());
+    const setTemperatureProps = (char: CharacteristicClass, range: { min: number; max: number; step?: number }) => {
+      const minValue = Math.max(HOMEKIT_TEMP_MIN, range.min || HOMEKIT_TEMP_MIN);
+      const maxValue = Math.min(HOMEKIT_TEMP_MAX, range.max || HOMEKIT_TEMP_MAX);
+      char.setProps({ minValue, maxValue, minStep: range.step || 0.01 });
+      const val = char.value as number;
+      if (val < minValue || val > maxValue) {
+        char.updateValue(Math.max(minValue, Math.min(maxValue, val)));
+      }
+    };
 
+    const targetHeatTemperature = status.getTemperatureRange(status.getTemperatureRangeForHeating());
     if (targetHeatTemperature) {
       const heatMin = status.convertTemperatureCelsiusFromLGToHomekit(targetHeatTemperature.min);
       const heatMax = status.convertTemperatureCelsiusFromLGToHomekit(targetHeatTemperature.max);
-      const heatMinValue = Math.max(HOMEKIT_TEMP_MIN, heatMin || HOMEKIT_TEMP_MIN);
-      const heatMaxValue = Math.min(HOMEKIT_TEMP_MAX, heatMax || HOMEKIT_TEMP_MAX);
-      const heatingChar = this.service.getCharacteristic(Characteristic.HeatingThresholdTemperature);
-      heatingChar.setProps({
-        minValue: heatMinValue,
-        maxValue: heatMaxValue,
-        minStep: targetHeatTemperature.step || 0.01,
+      setTemperatureProps(this.service.getCharacteristic(Characteristic.HeatingThresholdTemperature), {
+        min: heatMin, max: heatMax, step: targetHeatTemperature.step,
       });
-      const currentHeatValue = heatingChar.value as number;
-      if (typeof currentHeatValue !== 'number' || currentHeatValue < heatMinValue || currentHeatValue > heatMaxValue) {
-        heatingChar.updateValue(Math.max(heatMinValue, Math.min(heatMaxValue, currentHeatValue || heatMinValue)));
-      }
     }
 
     const targetCoolTemperature = status.getTemperatureRange(status.getTemperatureRangeForCooling());
-
     if (targetCoolTemperature) {
       const coolMin = status.convertTemperatureCelsiusFromLGToHomekit(targetCoolTemperature.min);
       const coolMax = status.convertTemperatureCelsiusFromLGToHomekit(targetCoolTemperature.max);
-      const coolMinValue = Math.max(HOMEKIT_TEMP_MIN, coolMin || HOMEKIT_TEMP_MIN);
-      const coolMaxValue = Math.min(HOMEKIT_TEMP_MAX, coolMax || HOMEKIT_TEMP_MAX);
-      const coolingChar = this.service.getCharacteristic(Characteristic.CoolingThresholdTemperature);
-      coolingChar.setProps({
-        minValue: coolMinValue,
-        maxValue: coolMaxValue,
-        minStep: targetCoolTemperature.step || 0.01,
+      setTemperatureProps(this.service.getCharacteristic(Characteristic.CoolingThresholdTemperature), {
+        min: coolMin, max: coolMax, step: targetCoolTemperature.step,
       });
-      const currentCoolValue = coolingChar.value as number;
-      if (typeof currentCoolValue !== 'number' || currentCoolValue < coolMinValue || currentCoolValue > coolMaxValue) {
-        coolingChar.updateValue(Math.max(coolMinValue, Math.min(coolMaxValue, currentCoolValue || coolMinValue)));
-      }
     }
 
     this.service.getCharacteristic(Characteristic.CoolingThresholdTemperature)
