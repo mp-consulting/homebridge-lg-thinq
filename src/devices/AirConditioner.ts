@@ -332,12 +332,18 @@ export default class AirConditioner extends BaseDevice {
     if (targetHeatTemperature) {
       const heatMin = status.convertTemperatureCelsiusFromLGToHomekit(targetHeatTemperature.min);
       const heatMax = status.convertTemperatureCelsiusFromLGToHomekit(targetHeatTemperature.max);
-      this.service.getCharacteristic(Characteristic.HeatingThresholdTemperature)
-        .setProps({
-          minValue: Math.max(HOMEKIT_TEMP_MIN, heatMin || HOMEKIT_TEMP_MIN),
-          maxValue: Math.min(HOMEKIT_TEMP_MAX, heatMax || HOMEKIT_TEMP_MAX),
-          minStep: targetHeatTemperature.step || 0.01,
-        });
+      const heatMinValue = Math.max(HOMEKIT_TEMP_MIN, heatMin || HOMEKIT_TEMP_MIN);
+      const heatMaxValue = Math.min(HOMEKIT_TEMP_MAX, heatMax || HOMEKIT_TEMP_MAX);
+      const heatingChar = this.service.getCharacteristic(Characteristic.HeatingThresholdTemperature);
+      heatingChar.setProps({
+        minValue: heatMinValue,
+        maxValue: heatMaxValue,
+        minStep: targetHeatTemperature.step || 0.01,
+      });
+      const currentHeatValue = heatingChar.value as number;
+      if (typeof currentHeatValue !== 'number' || currentHeatValue < heatMinValue || currentHeatValue > heatMaxValue) {
+        heatingChar.updateValue(Math.max(heatMinValue, Math.min(heatMaxValue, currentHeatValue || heatMinValue)));
+      }
     }
 
     const targetCoolTemperature = status.getTemperatureRange(status.getTemperatureRangeForCooling());
@@ -345,12 +351,18 @@ export default class AirConditioner extends BaseDevice {
     if (targetCoolTemperature) {
       const coolMin = status.convertTemperatureCelsiusFromLGToHomekit(targetCoolTemperature.min);
       const coolMax = status.convertTemperatureCelsiusFromLGToHomekit(targetCoolTemperature.max);
-      this.service.getCharacteristic(Characteristic.CoolingThresholdTemperature)
-        .setProps({
-          minValue: Math.max(HOMEKIT_TEMP_MIN, coolMin || HOMEKIT_TEMP_MIN),
-          maxValue: Math.min(HOMEKIT_TEMP_MAX, coolMax || HOMEKIT_TEMP_MAX),
-          minStep: targetCoolTemperature.step || 0.01,
-        });
+      const coolMinValue = Math.max(HOMEKIT_TEMP_MIN, coolMin || HOMEKIT_TEMP_MIN);
+      const coolMaxValue = Math.min(HOMEKIT_TEMP_MAX, coolMax || HOMEKIT_TEMP_MAX);
+      const coolingChar = this.service.getCharacteristic(Characteristic.CoolingThresholdTemperature);
+      coolingChar.setProps({
+        minValue: coolMinValue,
+        maxValue: coolMaxValue,
+        minStep: targetCoolTemperature.step || 0.01,
+      });
+      const currentCoolValue = coolingChar.value as number;
+      if (typeof currentCoolValue !== 'number' || currentCoolValue < coolMinValue || currentCoolValue > coolMaxValue) {
+        coolingChar.updateValue(Math.max(coolMinValue, Math.min(coolMaxValue, currentCoolValue || coolMinValue)));
+      }
     }
 
     this.service.getCharacteristic(Characteristic.CoolingThresholdTemperature)
