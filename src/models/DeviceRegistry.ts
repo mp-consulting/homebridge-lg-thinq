@@ -23,6 +23,8 @@ export interface DeviceDescriptor {
   v1Implementation: () => Promise<typeof BaseDevice> | null;
   /** HomeKit category for this device */
   homeKitCategory: number;
+  /** Whether this device uses the Television service and must be published as an external accessory */
+  externalAccessory?: boolean;
   /** Snapshot key for status data */
   snapshotKey?: string;
   /** Default configuration values */
@@ -129,6 +131,7 @@ export class DeviceRegistry {
       v2Implementation: () => import('../devices/Dishwasher.js').then(m => m.default),
       v1Implementation: () => null,
       homeKitCategory: Categories.SPRINKLER,
+      externalAccessory: true,
       snapshotKey: 'dishwasher',
       configDefaults: { dishwasher_trigger: false },
     }],
@@ -180,6 +183,7 @@ export class DeviceRegistry {
       v2Implementation: () => import('../devices/Microwave.js').then(m => m.default),
       v1Implementation: () => null,
       homeKitCategory: 9, // Thermostat (air heater)
+      externalAccessory: true,
       snapshotKey: 'ovenState',
     }],
     ['OVEN', {
@@ -187,6 +191,7 @@ export class DeviceRegistry {
       v2Implementation: () => import('../devices/Oven.js').then(m => m.default),
       v1Implementation: () => null,
       homeKitCategory: 9, // Thermostat
+      externalAccessory: true,
       snapshotKey: 'ovenState',
     }],
   ]);
@@ -238,6 +243,15 @@ export class DeviceRegistry {
   public static getSnapshotKey(type: string): string | undefined {
     const descriptor = this.DEVICES.get(type);
     return descriptor?.snapshotKey;
+  }
+
+  /**
+   * Check if a device type should be published as an external accessory.
+   * Devices using the Television service must be external so HomeKit respects the category.
+   */
+  public static isExternalAccessory(type: string): boolean {
+    const descriptor = this.DEVICES.get(type);
+    return descriptor?.externalAccessory === true;
   }
 
   /**

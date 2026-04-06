@@ -166,9 +166,30 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
       }
 
       let lgThinQDevice: BaseDevice;
+      const isExternal = Helper.isExternalAccessory(device);
 
       const existingAccessory: PlatformAccessory<AccessoryContext> | undefined = this.accessories.find(accessory => accessory.UUID === device.id);
-      if (existingAccessory) {
+
+      if (isExternal && existingAccessory) {
+        // Device was previously bridged but now needs to be external — unregister from bridge
+        this.log.info('Migrating accessory to external:', device.toString());
+        accessoriesToRemoveUUID.splice(accessoriesToRemoveUUID.indexOf(device.id), 1);
+        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
+        this.accessories.splice(this.accessories.indexOf(existingAccessory), 1);
+      }
+
+      if (isExternal) {
+        this.log.info('Publishing external accessory:', device.toString());
+
+        const category = Helper.category(device);
+        const accessory: PlatformAccessory<AccessoryContext> = new this.api.platformAccessory(device.name, device.id, category);
+        accessory.context.device = device;
+
+        lgThinQDevice = new accessoryType(this, accessory, this.log);
+
+        this.api.publishExternalAccessories(PLUGIN_NAME, [accessory]);
+        this.accessories.push(accessory);
+      } else if (existingAccessory) {
         // Remove the UUID from the removal list if the accessory already exists
         accessoriesToRemoveUUID.splice(accessoriesToRemoveUUID.indexOf(device.id), 1);
 

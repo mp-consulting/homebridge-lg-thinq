@@ -23,6 +23,13 @@ export class Helper {
   public static category(device: Device) {
     return DeviceRegistry.getCategory(device);
   }
+
+  /**
+   * Check if a device should be published as an external accessory
+   */
+  public static isExternalAccessory(device: Device) {
+    return DeviceRegistry.isExternalAccessory(device.type);
+  }
 }
 
 export { cToF, fToC, TemperatureConverter } from './utils/TemperatureConverter.js';
