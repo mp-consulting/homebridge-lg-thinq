@@ -47,9 +47,9 @@ export default class WasherDryer extends BaseDevice {
     this.serviceWasherDryer.setCharacteristic(Characteristic.Name, device.name);
     this.serviceWasherDryer.setCharacteristic(Characteristic.ValveType, Characteristic.ValveType.WATER_FAUCET);
     this.serviceWasherDryer.setCharacteristic(Characteristic.InUse, Characteristic.InUse.NOT_IN_USE);
-    this.serviceWasherDryer.getCharacteristic(Characteristic.RemainingDuration).setProps({
-      maxValue: ONE_DAY_IN_SECONDS,
-    });
+    this.serviceWasherDryer.getCharacteristic(Characteristic.RemainingDuration)
+      .setProps({ maxValue: ONE_DAY_IN_SECONDS })
+      .updateValue(0);
 
     // only thinq2 support door lock status
     const hasDoorLock = this.config.washer_door_lock && device.platform === PlatformType.ThinQ2
@@ -109,7 +109,7 @@ export default class WasherDryer extends BaseDevice {
     const {
       Characteristic,
     } = this.platform;
-    this.serviceWasherDryer?.updateCharacteristic(Characteristic.Active, this.Status.isPowerOn ? 1 : 0);
+    this.serviceWasherDryer?.updateCharacteristic(Characteristic.Active, this.Status.isRunning ? 1 : 0);
     this.serviceWasherDryer?.updateCharacteristic(Characteristic.InUse, this.Status.isRunning ? 1 : 0);
     const prevRemainDuration = this.serviceWasherDryer?.getCharacteristic(Characteristic.RemainingDuration)?.value;
     if (this.Status.remainDuration !== prevRemainDuration) {
