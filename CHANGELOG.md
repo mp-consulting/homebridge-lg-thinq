@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.24] - 2026-04-17
+
+### Fixed
+
+- **Build**: Add `skipLibCheck: true` to `tsconfig.json` — the transitive `@matter/types` package (brought in by `homebridge@2.x-beta` → `@matter/main`) ships `.d.ts` files that use `declare` in ambient contexts, which typescript 6.x rejects and broke the v1.0.23 CI build
+
 ## [1.0.23] - 2026-04-17
 
 ### Changed
