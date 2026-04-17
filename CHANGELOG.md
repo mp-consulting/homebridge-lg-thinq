@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.23] - 2026-04-17
+
+### Changed
+
+- **Dependencies**: Updated all dependencies to latest versions, including major bump for `homebridge-lib` (7→8)
+
 ## [1.0.22] - 2026-04-17
 
 ### Fixed
