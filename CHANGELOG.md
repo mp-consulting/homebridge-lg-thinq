@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.0.22] - 2026-04-17
+
+### Fixed
+
+- **Auth / MQTT**: Plugin could silently stop responding to HomeKit commands after a few hours, requiring a Homebridge restart ([#5](https://github.com/mp-consulting/homebridge-lg-thinq/issues/5)). Session expiry returned plain HTTP `401`/`403` without an LG `resultCode` body, so the existing token-refresh path never triggered and subsequent polls returned empty, freezing the device snapshot. Compounded by `ThinQ.devices()` swallowing all errors and the MQTT `offline` reconnect becoming an unhandled rejection on failure.
+- **Washer**: Resolved `RemainingDuration` stuck in "updating" state and `Active`/`InUse` inconsistency.
+
 ## [1.0.20] - 2026-04-04
 
 ### Fixed
