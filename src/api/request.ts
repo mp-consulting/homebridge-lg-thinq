@@ -65,6 +65,9 @@ client.interceptors.response.use((response) => {
     throw new NotConnectedError();
   } else if (err.response.data?.resultCode === TokenExpiredErrorCode) {
     throw new TokenExpiredError();
+  } else if (err.response.status === 401 || err.response.status === 403) {
+    // Session expired with no LG body code — route through the token-refresh path.
+    throw new TokenExpiredError('HTTP ' + err.response.status);
   } else if (err.response.data?.resultCode === ManualProcessNeededErrorCode) {
     throw new ManualProcessNeeded('Please open the native LG App and sign in to your account to see what happened, ' +
       'maybe new agreement need your accept. Then try restarting Homebridge.');

@@ -46,7 +46,8 @@ export class ThinQ {
   }
 
   public async devices() {
-    const listDevices = await this.api.getListDevices().catch(() => {
+    const listDevices = await this.api.getListDevices().catch((err) => {
+      this.logger.error('Failed to fetch device list:', err?.message || err);
       return [];
     });
 
@@ -401,9 +402,19 @@ export class ThinQ {
         device.end();
 
         this.logger.info('MQTT disconnected, retrying in 60 seconds!');
-        setTimeout(async () => {
-          await connectToMqtt();
-        }, REQUEST_TIMEOUT_MS);
+        // Wrap in try/catch so a failed reconnect (e.g. expired session during CSR) reschedules
+        // instead of becoming an unhandled rejection that silently stops all retries.
+        const attempt = () => {
+          setTimeout(async () => {
+            try {
+              await connectToMqtt();
+            } catch (err) {
+              this.logger.error('MQTT reconnect failed, retrying in 60 seconds:', (err as Error)?.message || err);
+              attempt();
+            }
+          }, REQUEST_TIMEOUT_MS);
+        };
+        attempt();
       });
     };
 
