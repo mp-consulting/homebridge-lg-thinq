@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.25] - 2026-04-18
+
+### Fixed
+
+- **Auth**: Plugin could still silently stop responding after a few hours in v1.0.22–v1.0.24 ([#5](https://github.com/mp-consulting/homebridge-lg-thinq/issues/5)). The axios response interceptor uses a 1-slot mutex (`PENDING_REQUESTS`), but four error branches — `NotConnectedError`, body-code `TokenExpiredError`, HTTP `401`/`403` `TokenExpiredError` (added in v1.0.22), and `ManualProcessNeeded` — threw typed errors **before** releasing the slot. A single token expiry was enough to deadlock every subsequent request on the shared client, including the token refresh itself (`Auth` reuses `requestClient`). HomeKit commands were accepted but never actually sent to LG until a Homebridge restart. Decrement is now moved to the top of both response handlers so the slot is always released.
+
 ## [1.0.24] - 2026-04-17
 
 ### Fixed
