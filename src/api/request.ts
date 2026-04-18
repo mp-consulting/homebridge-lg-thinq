@@ -45,6 +45,11 @@ client.interceptors.request.use((config) => {
   });
 });
 client.interceptors.response.use((response) => {
+  // Release the mutex slot before any error translation: a typed throw below
+  // (e.g. TokenExpiredError) would otherwise leak the slot and deadlock the
+  // recovery request (token refresh) that reuses this same client.
+  PENDING_REQUESTS = Math.max(0, PENDING_REQUESTS - 1);
+
   // thinq1 response
   if (typeof response.data === 'object' && 'lgedmRoot' in response.data && 'returnCd' in response.data.lgedmRoot) {
     const data = response.data.lgedmRoot;
@@ -58,9 +63,10 @@ client.interceptors.response.use((response) => {
     }
   }
 
-  PENDING_REQUESTS = Math.max(0, PENDING_REQUESTS - 1);
   return Promise.resolve(response);
 }, (err) => {
+  PENDING_REQUESTS = Math.max(0, PENDING_REQUESTS - 1);
+
   if (!err.response || err.response.data?.resultCode === '9999') {
     throw new NotConnectedError();
   } else if (err.response.data?.resultCode === TokenExpiredErrorCode) {
@@ -72,7 +78,6 @@ client.interceptors.response.use((response) => {
     throw new ManualProcessNeeded('Please open the native LG App and sign in to your account to see what happened, ' +
       'maybe new agreement need your accept. Then try restarting Homebridge.');
   }
-  PENDING_REQUESTS = Math.max(0, PENDING_REQUESTS - 1);
   return Promise.reject(err);
 });
 
