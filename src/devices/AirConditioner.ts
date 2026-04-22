@@ -360,13 +360,18 @@ export default class AirConditioner extends BaseDevice {
     this.service.getCharacteristic(Characteristic.HeatingThresholdTemperature)
       .onSet(this.setTargetTemperature.bind(this));
 
+    // Always normalise RotationSpeed props on the HeaterCooler service to 0-100.
+    // Older versions of this plugin persisted maxValue=5 in the accessory cache,
+    // which would then clash with the 0-100 windStrength values pushed by
+    // updateAccessoryFanStateCharacteristics when ac_fan_control=true.
+    this.service.getCharacteristic(Characteristic.RotationSpeed)
+      .setProps({
+        minValue: 0,
+        maxValue: HUMIDITY_MAX,
+        minStep: 1,
+      });
     if (!this.config.ac_fan_control) {
       this.service.getCharacteristic(Characteristic.RotationSpeed)
-        .setProps({
-          minValue: 0,
-          maxValue: HUMIDITY_MAX,
-          minStep: 1,
-        })
         .onSet(this.setFanSpeed.bind(this));
     }
     this.service.getCharacteristic(Characteristic.SwingMode)
