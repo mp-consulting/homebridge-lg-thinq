@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.26] - 2026-04-28
+
+### Fixed
+
+- **AC**: Repeated `Rotation Speed: number 100 exceeded maximum of 5` warning on every snapshot ([#4](https://github.com/mp-consulting/homebridge-lg-thinq/issues/4)). Older plugin versions persisted `maxValue: 5` on the HeaterCooler service's `RotationSpeed` characteristic into Homebridge's accessory cache. With `ac_fan_control: true` the props were no longer being re-applied, but `updateAccessoryFanStateCharacteristics` still pushed the 0–100 `windStrength` value to that same characteristic, tripping the stale max. The HeaterCooler `RotationSpeed` props are now normalised on startup regardless of `ac_fan_control`.
+
 ## [1.0.25] - 2026-04-18
 
 ### Fixed
