@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import type { AccessoryContext } from '../src/baseDevice.js';
-import { BaseDevice } from '../src/baseDevice.js';
+import { BaseDevice, mergeSnapshot } from '../src/baseDevice.js';
 import type { LGThinQHomebridgePlatform } from '../src/platform.js';
 import type { Logger, PlatformAccessory } from 'homebridge';
 import type { DeviceData } from '../src/models/Device.js';
@@ -162,6 +162,72 @@ describe('BaseDevice', () => {
       const second = testDevice.callStatus();
       expect(second).not.toBe(first);
       expect(second.data).toEqual({ running: true });
+    });
+  });
+});
+
+describe('mergeSnapshot', () => {
+  it('preserves washer siblings when MQTT publishes a partial remainTimeMinute delta', () => {
+    // Captured from a real Viva (WASHER F_V7_F___W.B_2QEUK) log: every minute
+    // the MQTT stream pushes only the field that changed, with the rest of the
+    // washerDryer subtree omitted. Shallow spread used to replace the whole
+    // subtree with this one-key object, dropping doorLock for an instant.
+    const current = {
+      online: true,
+      washerDryer: {
+        state: 'RUNNING',
+        doorLock: 'DOOR_LOCK_ON',
+        remainTimeMinute: 52,
+        TCLCount: 36,
+      },
+    };
+    const delta = {
+      online: true,
+      washerDryer: { remainTimeMinute: 51 },
+    };
+
+    const merged = mergeSnapshot(current, delta);
+
+    expect(merged).toEqual({
+      online: true,
+      washerDryer: {
+        state: 'RUNNING',
+        doorLock: 'DOOR_LOCK_ON',
+        remainTimeMinute: 51,
+        TCLCount: 36,
+      },
+    });
+  });
+
+  it('replaces arrays rather than concatenating', () => {
+    const merged = mergeSnapshot({ values: [1, 2, 3] }, { values: [4] });
+    expect(merged).toEqual({ values: [4] });
+  });
+
+  it('replaces primitives at top level', () => {
+    const merged = mergeSnapshot({ online: false, mid: 1 }, { online: true, mid: 2 });
+    expect(merged).toEqual({ online: true, mid: 2 });
+  });
+
+  it('returns a copy when the current snapshot is null or undefined', () => {
+    const incoming = { washerDryer: { state: 'RUNNING' } };
+    expect(mergeSnapshot(null, incoming)).toEqual(incoming);
+    expect(mergeSnapshot(undefined, incoming)).toEqual(incoming);
+    expect(mergeSnapshot(null, incoming)).not.toBe(incoming);
+  });
+
+  it('handles AC-style flat dotted keys identically to shallow spread', () => {
+    const current = {
+      'airState.opMode': 0,
+      'airState.windStrength': 2,
+      'airState.tempState.target': 24,
+    };
+    const delta = { 'airState.windStrength': 6 };
+
+    expect(mergeSnapshot(current, delta)).toEqual({
+      'airState.opMode': 0,
+      'airState.windStrength': 6,
+      'airState.tempState.target': 24,
     });
   });
 });

@@ -7,6 +7,39 @@ import { DeviceRegistry } from './models/DeviceRegistry.js';
 
 type ServiceConstructor = WithUUID<typeof Service>;
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Recursively merge a partial snapshot into the existing snapshot.
+ *
+ * ThinQ MQTT publishes `state.reported` as a sparse delta — a once-per-minute
+ * `{ washerDryer: { remainTimeMinute: N } }` would otherwise replace the entire
+ * `washerDryer` subtree under shallow spread, dropping `doorLock`/`state`/etc.
+ * for an instant and triggering spurious HomeKit notifications when the next
+ * poll restored them. Deep merge preserves siblings; arrays are replaced.
+ */
+export function mergeSnapshot(
+  current: Record<string, unknown> | null | undefined,
+  incoming: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!isPlainObject(current)) {
+    return { ...incoming };
+  }
+  const result: Record<string, unknown> = { ...current };
+  for (const key of Object.keys(incoming)) {
+    const next = incoming[key];
+    const prev = result[key];
+    if (isPlainObject(prev) && isPlainObject(next)) {
+      result[key] = mergeSnapshot(prev, next);
+    } else {
+      result[key] = next;
+    }
+  }
+  return result;
+}
+
 export interface DeviceControlPayload {
   dataKey: string | null;
   dataValue: unknown;
@@ -53,7 +86,7 @@ export class BaseDevice extends EventEmitter {
 
   public update(snapshot: Record<string, unknown>) {
     this.platform.log.debug('[' + this.accessory.context.device.name + '] Received snapshot: ', JSON.stringify(snapshot));
-    this.accessory.context.device.data.snapshot = { ...this.accessory.context.device.snapshot, ...snapshot };
+    this.accessory.context.device.data.snapshot = mergeSnapshot(this.accessory.context.device.snapshot, snapshot);
     this.updateAccessoryCharacteristic(this.accessory.context.device);
   }
 
