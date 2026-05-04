@@ -22,7 +22,9 @@ export type AccessoryContext = {
 export class BaseDevice extends EventEmitter {
   /** Cached status instance */
   private _cachedStatus: unknown = null;
-  /** Hash of last snapshot for cache invalidation */
+  /** Snapshot version that produced the cached status (-1 = never cached) */
+  private _cachedStatusVersion: number = -1;
+  /** Monotonic counter incremented whenever the underlying snapshot changes */
   private _lastSnapshotVersion: number = 0;
 
   constructor(
@@ -83,18 +85,15 @@ export class BaseDevice extends EventEmitter {
     StatusClass: new (data: any, model: any) => T,
     snapshotKey?: string,
   ): T {
-    const device = this.accessory.context.device;
-    const currentVersion = this._lastSnapshotVersion;
-
-    // Return cached status if snapshot hasn't changed
-    if (this._cachedStatus && this._lastSnapshotVersion === currentVersion) {
+    if (this._cachedStatus && this._cachedStatusVersion === this._lastSnapshotVersion) {
       return this._cachedStatus as T;
     }
 
-    // Auto-resolve snapshot key from DeviceRegistry if not provided
+    const device = this.accessory.context.device;
     const key = snapshotKey ?? DeviceRegistry.getSnapshotKey(device.type);
     const snapshotData = key ? device.snapshot?.[key] : device.snapshot;
     this._cachedStatus = new StatusClass(snapshotData, device.deviceModel);
+    this._cachedStatusVersion = this._lastSnapshotVersion;
 
     return this._cachedStatus as T;
   }

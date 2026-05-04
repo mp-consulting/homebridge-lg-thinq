@@ -112,4 +112,56 @@ describe('BaseDevice', () => {
   it('should return an empty string for the static model method', () => {
     expect(BaseDevice.model()).toBe('');
   });
+
+  describe('getStatus caching', () => {
+    class TestStatus {
+      constructor(public readonly data: Record<string, unknown> | undefined, public readonly model: unknown) {}
+    }
+
+    type GetStatusFn = (StatusClass: typeof TestStatus, snapshotKey?: string) => TestStatus;
+    class TestDevice extends BaseDevice {
+      public callStatus() {
+        return (this['getStatus' as keyof BaseDevice] as unknown as GetStatusFn).call(this, TestStatus, 'state');
+      }
+    }
+
+    function makeStubDevice(initialSnapshot: Record<string, unknown>): Device {
+      // Build a Device-shaped stub without invoking the (mocked) constructor,
+      // so the data field is actually populated.
+      return {
+        get snapshot() {
+          return this.data.snapshot;
+        },
+        data: { snapshot: initialSnapshot } as unknown as DeviceData,
+        deviceModel: {},
+      } as unknown as Device;
+    }
+
+    it('reuses the cached status when the snapshot version has not changed', () => {
+      accessory.context.device = makeStubDevice({ state: { running: false } });
+      const testDevice = new TestDevice(platform, accessory, logger);
+
+      const first = testDevice.callStatus();
+      const second = testDevice.callStatus();
+
+      expect(second).toBe(first);
+    });
+
+    it('rebuilds the cached status after updateAccessoryCharacteristic', () => {
+      accessory.context.device = makeStubDevice({ state: { running: false } });
+      const testDevice = new TestDevice(platform, accessory, logger);
+
+      const first = testDevice.callStatus();
+      expect(first.data).toEqual({ running: false });
+
+      // Simulate a new snapshot arriving (e.g. via MQTT) followed by the
+      // standard updateAccessoryCharacteristic call that bumps the version.
+      accessory.context.device.data.snapshot = { state: { running: true } };
+      testDevice.updateAccessoryCharacteristic(accessory.context.device);
+
+      const second = testDevice.callStatus();
+      expect(second).not.toBe(first);
+      expect(second.data).toEqual({ running: true });
+    });
+  });
 });
