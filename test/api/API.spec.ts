@@ -1,5 +1,6 @@
 /* eslint-disable dot-notation */
 import { vi } from 'vitest';
+import axios from 'axios';
 import { API } from '../../src/api/API.js';
 import type { Logger } from 'homebridge';
 
@@ -64,5 +65,66 @@ describe('API', () => {
       }),
     );
     expect(result).toEqual({ success: true });
+  });
+
+  describe('quiet flag', () => {
+    // Stub gateway() so request() can resolve a URL without hitting the network.
+    beforeEach(() => {
+      vi.spyOn(api, 'gateway').mockResolvedValue({
+        thinq1_url: 'https://thinq1.example/',
+        thinq2_url: 'https://thinq2.example/',
+      } as never);
+    });
+
+    test('logs axios failures at error level by default', async () => {
+      const axiosErr = Object.assign(new Error('Request failed with status code 400'), {
+        isAxiosError: true,
+        response: { status: 400, data: { resultCode: '9006', result: '' } },
+      });
+      vi.spyOn(axios, 'isAxiosError').mockReturnValue(true);
+      vi.spyOn(api.httpClient, 'request').mockRejectedValueOnce(axiosErr);
+
+      await api.sendCommandToDevice('device1', { dataKey: 'foo', dataValue: 1 }, 'Set');
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'axios request error: ',
+        { resultCode: '9006', result: '' },
+        expect.any(Object),
+      );
+      expect(mockLogger.debug).not.toHaveBeenCalledWith(
+        'axios request error: ',
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    test('demotes axios failures to debug when quiet', async () => {
+      const axiosErr = Object.assign(new Error('Request failed with status code 400'), {
+        isAxiosError: true,
+        response: { status: 400, data: { resultCode: '9006', result: '' } },
+      });
+      vi.spyOn(axios, 'isAxiosError').mockReturnValue(true);
+      vi.spyOn(api.httpClient, 'request').mockRejectedValueOnce(axiosErr);
+
+      await api.sendCommandToDevice(
+        'device1',
+        { dataKey: 'airState.mon.timeout', dataValue: 70 },
+        'Set',
+        'allEventEnable',
+        'control',
+        { quiet: true },
+      );
+
+      expect(mockLogger.error).not.toHaveBeenCalledWith(
+        'axios request error: ',
+        expect.anything(),
+        expect.anything(),
+      );
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'axios request error: ',
+        { resultCode: '9006', result: '' },
+        expect.any(Object),
+      );
+    });
   });
 });

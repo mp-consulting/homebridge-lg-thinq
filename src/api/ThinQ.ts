@@ -178,7 +178,8 @@ export class ThinQ {
 
   public async deviceControl(
     device: string | Device, values: Record<string, unknown>,
-    command: 'Set' | 'Operation' = 'Set', ctrlKey = 'basicCtrl', ctrlPath = 'control-sync') {
+    command: 'Set' | 'Operation' = 'Set', ctrlKey = 'basicCtrl', ctrlPath = 'control-sync',
+    opts: { quiet?: boolean } = {}) {
     const id = device instanceof Device ? device.id : device;
     const model: DeviceModel | undefined = this.deviceModel[id];
 
@@ -258,7 +259,7 @@ export class ThinQ {
     };
     normalizeBooleans(values);
 
-    const response = await this.api.sendCommandToDevice(id, values, command, ctrlKey, ctrlPath);
+    const response = await this.api.sendCommandToDevice(id, values, command, ctrlKey, ctrlPath, opts);
     if (response.resultCode === '0000') {
       this.logger.debug('ThinQ Device Received the Command');
       return true;

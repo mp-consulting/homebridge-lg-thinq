@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.29] - 2026-05-04
+
+### Fixed
+
+- **AC**: Repeated `axios request error: { resultCode: '9006', result: '' }` and `AxiosError: Request failed with status code 400` pairs in the Homebridge log every minute while the AC was idle ([#8](https://github.com/mp-consulting/homebridge-lg-thinq/issues/8)). The AC handler pings `airState.mon.timeout` once a minute to keep the unit reporting state, but LG's API rejects that `Set` command with HTTP 400 / `resultCode 9006` whenever the unit is powered off — and `API.request()` logged every axios failure at `error` level, so an off AC produced two error lines per minute indefinitely. The monitor-timeout ping now skips when `Status.isPowerOn` is false (LG would reject it anyway, so no functional loss) and is sent with a new `quiet` flag that demotes any remaining failures (e.g. the brief window where local snapshot still says on) to debug. The flag threads through `ThinQ.deviceControl` → `API.sendCommandToDevice` → `postRequest` → `request` and is opt-in, so all existing callers continue to log at error level unchanged.
+
 ## [1.0.28] - 2026-05-04
 
 ### Fixed

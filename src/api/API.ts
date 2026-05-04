@@ -80,10 +80,13 @@ export class API {
    *
    * @param uri - The URI to send the POST request to.
    * @param data - The data to include in the POST request.
+   * @param opts - Optional request options. `quiet: true` demotes axios error
+   *   logs to debug level for routine background calls that may legitimately
+   *   fail (e.g. AC monitor-timeout pings while the unit is off).
    * @returns A promise resolving to the response data.
    */
-  async postRequest(uri: string, data: Record<string, unknown>) {
-    return await this.request('post', uri, data);
+  async postRequest(uri: string, data: Record<string, unknown>, opts: { quiet?: boolean } = {}) {
+    return await this.request('post', uri, data, false, opts);
   }
 
   resolveUrl(from: string, to: string) {
@@ -100,8 +103,14 @@ export class API {
    * @param retry - Whether to retry the request in case of token expiration.
    * @returns A promise resolving to the response data.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected async request(method: Method | undefined, uri: string, data?: Record<string, unknown>, retry = false): Promise<any> {
+  protected async request(
+    method: Method | undefined,
+    uri: string,
+    data?: Record<string, unknown>,
+    retry = false,
+    opts: { quiet?: boolean } = {},
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): Promise<any> {
     const gateway = await this.gateway();
     // Determine the appropriate headers based on the URI
     const requestHeaders = (gateway.thinq1_url && uri.startsWith(gateway.thinq1_url))
@@ -123,7 +132,7 @@ export class API {
       if (err instanceof TokenExpiredError && !retry) {
         try {
           await this.refreshNewToken();
-          return await this.request(method, uri, data, true);
+          return await this.request(method, uri, data, true, opts);
         } catch (refreshErr) {
           this.logger.error('refresh new token error: ', refreshErr);
           return {};
@@ -140,17 +149,20 @@ export class API {
 
         if (!retry) {
           // Retry the request once
-          return await this.request(method, uri, data, true);
+          return await this.request(method, uri, data, true, opts);
         } else {
           return {};
         }
       } else {
-        // Log other errors
+        // Log other errors. Background commands marked `quiet` (e.g. the AC
+        // monitor-timeout ping that LG rejects when the unit is off) log at
+        // debug to avoid filling the Homebridge log with expected failures.
+        const log = opts.quiet ? this.logger.debug.bind(this.logger) : this.logger.error.bind(this.logger);
         if (axios.isAxiosError(err)) {
-          this.logger.error('axios request error: ', err.response?.data, data);
-          this.logger.error(err.stack || 'No stack error');
+          log('axios request error: ', err.response?.data, data);
+          log(err.stack || 'No stack error');
         } else if (!(err instanceof NotConnectedError)) {
-          this.logger.error('request error: ', err);
+          log('request error: ', err);
         }
 
         return {};
@@ -274,6 +286,7 @@ export class API {
     command: 'Set' | 'Operation',
     ctrlKey = 'basicCtrl',
     ctrlPath = 'control-sync',
+    opts: { quiet?: boolean } = {},
   ) {
     if (typeof device_id !== 'string' || !device_id.trim()) {
       throw new Error('Invalid device_id: must be a non-empty string.');
@@ -285,7 +298,7 @@ export class API {
       ctrlKey,
       'command': command,
       ...values,
-    });
+    }, opts);
   }
 
   /**

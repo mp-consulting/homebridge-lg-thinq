@@ -192,12 +192,15 @@ export default class AirConditioner extends BaseDevice {
     const supportsMonitorTimeout = !AC_MODEL_FEATURES.noMonitorTimeout.some(m => device.model.includes(m));
     if (supportsMonitorTimeout) {
       this.monitorInterval = setInterval(async () => {
-        if (device.online) {
+        // LG's API rejects airState.mon.timeout with HTTP 400 / resultCode 9006
+        // when the unit is powered off, so skip rather than spamming the log.
+        // https://github.com/mp-consulting/homebridge-lg-thinq/issues/8
+        if (device.online && this.Status.isPowerOn) {
           try {
             await this.platform.ThinQ?.deviceControl(device.id, {
               dataKey: 'airState.mon.timeout',
               dataValue: AC_MONITOR_TIMEOUT_VALUE,
-            }, 'Set', 'allEventEnable', 'control');
+            }, 'Set', 'allEventEnable', 'control', { quiet: true });
           } catch (error) {
             this.logger.debug('Error sending monitor timeout command:', error);
           }
