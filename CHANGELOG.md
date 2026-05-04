@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.28] - 2026-05-04
+
+### Fixed
+
+- **WasherDryer (and any device with nested snapshot subtrees)**: spurious "Door was locked / unlocked" HomeKit notifications every minute while the washer was running ([#4](https://github.com/mp-consulting/homebridge-lg-thinq/issues/4)). ThinQ MQTT publishes `state.reported` as a sparse delta — once a minute, when `remainTimeMinute` decrements, MQTT broadcasts only the changed field: `{ washerDryer: { remainTimeMinute: N } }`. `BaseDevice.update()` was merging this with a shallow spread, replacing the entire `washerDryer` subtree with that one-key object and wiping `doorLock`, `state`, `processState`, etc. for an instant. `Status.isDoorLocked` then saw an empty `doorLock` string, returned `false` (UNSECURED), and HomeKit fired a "Door was unlocked" notification; the next polling tick (often within the same second) restored the full subtree and HomeKit fired a matching "Door was locked". Verified against a 17-minute debug log from a live washer: 7 of 90 received snapshots were partial deltas of exactly that shape. Snapshot merging is now recursive, so deltas update only the leaves that actually changed and siblings are preserved. AC and other devices that publish flat dotted keys at the top level are unaffected (deep merge is identical to shallow merge for flat keys).
+
 ## [1.0.27] - 2026-05-04
 
 ### Fixed
