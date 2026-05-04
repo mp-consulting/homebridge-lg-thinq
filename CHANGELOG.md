@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.27] - 2026-05-04
+
+### Fixed
+
+- **All v2 devices using `getStatus()`**: Device state in HomeKit froze at the first snapshot received after Homebridge startup ([#4](https://github.com/mp-consulting/homebridge-lg-thinq/issues/4)). `BaseDevice.getStatus()` cached the `Status` instance and was supposed to invalidate it whenever `_lastSnapshotVersion` changed, but the version check (`this._lastSnapshotVersion === currentVersion`) compared the field to a value just copied from itself, so the guard was always true and a fresh `Status` was never built. The cached value would only refresh on the very first call (when `_cachedStatus` was still `null`). Result: `WasherDryer.Status.isRunning`, `remainDuration`, `isDoorLocked` etc. (and the equivalent on Dehumidifier, Styler, RangeHood, Refrigerator, Microwave, AirPurifier, Dishwasher) reflected the snapshot at plugin load forever — a washer that started a cycle after Homebridge restarted would show as Off in HomeKit while running normally in the LG ThinQ app. Cache version is now tracked separately and compared against the current snapshot version.
+
 ## [1.0.26] - 2026-04-28
 
 ### Fixed
