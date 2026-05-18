@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.30] - 2026-05-18
+
+### Fixed
+
+- **Microwave (all models)**: `Cannot read properties of undefined (reading 'context')` thrown immediately after `Publishing external accessory:`, with the microwave never appearing in HomeKit ([#9](https://github.com/mp-consulting/homebridge-lg-thinq/issues/9)). Every derived device class re-declared `platform` and `accessory` as parameter properties in its constructor signature (`public readonly accessory: PlatformAccessory<AccessoryContext>`). Under ES2022 native class-field semantics, those redeclarations emit subclass field declarations that execute after `super()` returns but before the constructor body — initialising both fields to `undefined` and overwriting the values just assigned by `BaseDevice`'s constructor. Microwave was the only class with a field initializer (`ovenCommandList.tempUnits = this.Status.data?.LWOTargetTemperatureUnit`) that read `this.Status` — and therefore `this.accessory.context.device` — at that exact window, so its construction always threw for every LG over-the-range / countertop microwave model. The same shadow was a latent footgun in every other device class. Removed the redundant `public readonly` modifiers from all 13 derived device constructors; `BaseDevice` already owns those parameter properties, so `super()` is now authoritative.
+
 ## [1.0.29] - 2026-05-04
 
 ### Fixed
