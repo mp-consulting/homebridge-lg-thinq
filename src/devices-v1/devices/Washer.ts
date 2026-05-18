@@ -7,8 +7,8 @@ import type { AccessoryContext } from '../../baseDevice.js';
 
 export default class Washer extends WasherV2 {
   constructor(
-    public readonly platform: LGThinQHomebridgePlatform,
-    public readonly accessory: PlatformAccessory<AccessoryContext>,
+    platform: LGThinQHomebridgePlatform,
+    accessory: PlatformAccessory<AccessoryContext>,
     logger: Logger,
   ) {
     super(platform, accessory, logger);

@@ -7,8 +7,8 @@ import { safeParseInt, normalizeNumber } from '../helper.js';
 
 export default class AirPurifier extends V2 {
   constructor(
-    public readonly platform: LGThinQHomebridgePlatform,
-    public readonly accessory: PlatformAccessory<AccessoryContext>,
+    platform: LGThinQHomebridgePlatform,
+    accessory: PlatformAccessory<AccessoryContext>,
     logger: Logger,
   ) {
     super(platform, accessory, logger);

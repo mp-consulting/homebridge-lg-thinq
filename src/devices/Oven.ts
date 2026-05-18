@@ -149,8 +149,8 @@ export default class Oven extends BaseDevice {
   }
 
   constructor(
-    public readonly platform: LGThinQHomebridgePlatform,
-    public readonly accessory: PlatformAccessory<AccessoryContext>,
+    platform: LGThinQHomebridgePlatform,
+    accessory: PlatformAccessory<AccessoryContext>,
     logger: Logger,
   ) {
     super(platform, accessory, logger);

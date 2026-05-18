@@ -21,8 +21,8 @@ export default class Dehumidifier extends BaseDevice {
   protected serviceDehumidifier;
   protected serviceHumiditySensor;
   constructor(
-    public readonly platform: LGThinQHomebridgePlatform,
-    public readonly accessory: PlatformAccessory<AccessoryContext>,
+    platform: LGThinQHomebridgePlatform,
+    accessory: PlatformAccessory<AccessoryContext>,
     logger: Logger,
   ) {
     super(platform, accessory, logger);

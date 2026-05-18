@@ -164,6 +164,52 @@ describe('BaseDevice', () => {
       expect(second.data).toEqual({ running: true });
     });
   });
+
+  // Regression for #9: subclasses that redeclared `public readonly accessory`
+  // as a parameter property had their `this.accessory` clobbered to `undefined`
+  // by ES2022 class-field semantics — field initializers running after super()
+  // but before the constructor body's parameter-property assignment saw an
+  // undefined accessory. Only manifested in Microwave because it was the only
+  // class with a field initializer reading `this.Status` (-> `this.accessory`).
+  describe('subclass field-initializer access to accessory (issue #9)', () => {
+    class TestStatus {
+      constructor(public readonly data: Record<string, unknown> | undefined, public readonly model: unknown) {}
+    }
+
+    function makeStubDevice(snapshot: Record<string, unknown>): Device {
+      return {
+        get snapshot() {
+          return this.data.snapshot;
+        },
+        data: { snapshot } as unknown as DeviceData,
+        deviceModel: {},
+        type: 'TEST',
+      } as unknown as Device;
+    }
+
+    type GetStatusFn = (StatusClass: typeof TestStatus, snapshotKey?: string) => TestStatus;
+
+    // Mirrors the Microwave shape: a derived class with a field initializer
+    // that reads through this.Status -> this.accessory.context.device.
+    class MicrowaveLike extends BaseDevice {
+      get Status() {
+        return (this['getStatus' as keyof BaseDevice] as unknown as GetStatusFn).call(this, TestStatus, 'state');
+      }
+      // The exact pattern that crashed in Microwave.ts before the fix.
+      public commandList = { tempUnits: this.Status.data?.temperatureUnit };
+    }
+
+    it('does not throw when a field initializer reads this.Status', () => {
+      accessory.context.device = makeStubDevice({ state: { temperatureUnit: 'F' } });
+      expect(() => new MicrowaveLike(platform, accessory, logger)).not.toThrow();
+    });
+
+    it('field initializer sees the real snapshot value', () => {
+      accessory.context.device = makeStubDevice({ state: { temperatureUnit: 'F' } });
+      const m = new MicrowaveLike(platform, accessory, logger);
+      expect(m.commandList.tempUnits).toBe('F');
+    });
+  });
 });
 
 describe('mergeSnapshot', () => {

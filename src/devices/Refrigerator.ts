@@ -16,8 +16,8 @@ export default class Refrigerator extends BaseDevice {
   protected serviceWaterFilter: Service | undefined;
 
   constructor(
-    public readonly platform: LGThinQHomebridgePlatform,
-    public readonly accessory: PlatformAccessory<AccessoryContext>,
+    platform: LGThinQHomebridgePlatform,
+    accessory: PlatformAccessory<AccessoryContext>,
     logger: Logger,
   ) {
     super(platform, accessory, logger);
