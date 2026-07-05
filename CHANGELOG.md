@@ -1,5 +1,14 @@
 # Change Log
 
+## [1.0.31] - 2026-07-05
+
+### Fixed
+
+- **AC (and all ThinQ2 devices) stop responding after a few hours** ([#11](https://github.com/mp-consulting/homebridge-lg-thinq/issues/11)). ThinQ2 devices already receive real-time state over MQTT, but the platform also re-fetched the **entire** homes + device list over REST on a `setInterval` driven by `refresh_interval` — which defaults to 5 seconds and, per the config schema, is meant to be a ThinQ1-only setting. Polling LG's device-list endpoint ~720×/hour eventually tripped LG's rate limit (`HTTP 429` / `resultCode 9012` — "Please consider using the official API"), which throttles the whole account; commands sent from the Home app then silently failed (`API.request()` swallows the error and returns `{}`), so the AC "registered" taps but did nothing. Three changes:
+  - The ThinQ2 reconciliation poll is decoupled from `refresh_interval` and now runs every 5 minutes (`THINQ2_POLL_INTERVAL_MS`), since MQTT handles real-time updates. `refresh_interval` continues to drive ThinQ1 polling only, matching the schema.
+  - `API` now detects rate-limit responses (HTTP 429 / `resultCode 9012`) and enters an exponential-backoff cooldown (1 → 30 min), skipping requests until it clears so the throttle can lift and control recovers automatically. A concise warning is logged instead of a stack trace.
+  - `getListDevices` / `getListHomes` no longer throw `Cannot read properties of undefined (reading 'devices')` on an empty/throttled response, and a failed home-list fetch is no longer cached permanently.
+
 ## [1.0.30] - 2026-05-18
 
 ### Fixed

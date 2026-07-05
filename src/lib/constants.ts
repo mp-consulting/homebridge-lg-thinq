@@ -109,6 +109,23 @@ export const ONE_HOUR_MS = 3600000;
 export const DISHWASHER_STANDBY_INTERVAL_MS = 902500; // ~15 minutes
 
 /**
+ * ThinQ2 devices receive real-time state over MQTT, so the periodic REST
+ * device-list poll is only a reconciliation fallback. It runs far less often
+ * than the ThinQ1 `refresh_interval` to avoid tripping LG's API rate limit
+ * (HTTP 429 / resultCode 9012), which otherwise throttles the whole account
+ * and silently breaks control commands.
+ */
+export const THINQ2_POLL_INTERVAL_MS = 300000; // 5 minutes
+
+/**
+ * Backoff bounds applied when LG rate-limits the account (HTTP 429 / 9012).
+ * Requests are paused for BASE on the first hit and double up to MAX on
+ * repeats, so the throttle can clear instead of being extended by more calls.
+ */
+export const RATE_LIMIT_BASE_MS = 60000; // 1 minute
+export const RATE_LIMIT_MAX_MS = 1800000; // 30 minutes
+
+/**
  * Filter maintenance thresholds
  */
 export const FILTER_CHANGE_THRESHOLD_PERCENT = 95;

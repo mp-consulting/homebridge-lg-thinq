@@ -53,11 +53,50 @@ export class API {
 
   public httpClient = requestClient;
 
+  // Rate-limit (HTTP 429 / resultCode 9012) backoff state. While
+  // `rateLimitedUntil` is in the future, requests are skipped so LG's throttle
+  // can clear; the cooldown doubles on repeat hits and resets on success.
+  protected rateLimitedUntil = 0;
+  protected rateLimitBackoffMs = 0;
+
   constructor(
     protected country: string = 'US',
     protected language: string = 'en-US',
     protected logger: Logger,
   ) {
+  }
+
+  /**
+   * Whether the account is currently in a rate-limit cooldown. Callers can use
+   * this to skip non-essential work while LG is throttling us.
+   */
+  public isRateLimited(): boolean {
+    return Date.now() < this.rateLimitedUntil;
+  }
+
+  /**
+   * Enter (or extend) a rate-limit cooldown after an HTTP 429 / resultCode 9012.
+   * The window starts at RATE_LIMIT_BASE_MS and doubles up to RATE_LIMIT_MAX_MS
+   * on consecutive hits.
+   */
+  protected markRateLimited(): void {
+    this.rateLimitBackoffMs = this.rateLimitBackoffMs
+      ? Math.min(this.rateLimitBackoffMs * 2, constants.RATE_LIMIT_MAX_MS)
+      : constants.RATE_LIMIT_BASE_MS;
+    this.rateLimitedUntil = Date.now() + this.rateLimitBackoffMs;
+    this.logger.warn(
+      `LG ThinQ API rate limit hit (HTTP 429 / 9012). Pausing requests for ${Math.round(this.rateLimitBackoffMs / 1000)}s ` +
+      'so the throttle can clear. If this keeps happening, increase the refresh interval or reduce other ThinQ integrations.',
+    );
+  }
+
+  /** Clear the rate-limit cooldown after a successful request. */
+  protected clearRateLimit(): void {
+    if (this.rateLimitBackoffMs) {
+      this.logger.info('LG ThinQ API rate limit cleared; resuming normal requests.');
+    }
+    this.rateLimitBackoffMs = 0;
+    this.rateLimitedUntil = 0;
   }
 
   /**
@@ -111,6 +150,14 @@ export class API {
     opts: { quiet?: boolean } = {},
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
+    // Respect an active rate-limit cooldown: skip the network call entirely so
+    // LG's throttle can clear instead of being extended by more 429s. Returning
+    // {} keeps the existing "degrade gracefully" contract for all callers.
+    if (this.isRateLimited()) {
+      this.logger.debug('Skipping request during rate-limit cooldown: ' + uri);
+      return {};
+    }
+
     const gateway = await this.gateway();
     // Determine the appropriate headers based on the URI
     const requestHeaders = (gateway.thinq1_url && uri.startsWith(gateway.thinq1_url))
@@ -126,6 +173,7 @@ export class API {
         data,
         headers: requestHeaders,
       });
+      this.clearRateLimit();
       return res.data;
     } catch (err) {
       // Handle token expiration and retry the request
@@ -159,6 +207,15 @@ export class API {
         // debug to avoid filling the Homebridge log with expected failures.
         const log = opts.quiet ? this.logger.debug.bind(this.logger) : this.logger.error.bind(this.logger);
         if (axios.isAxiosError(err)) {
+          const status = err.response?.status;
+          const resultCode = (err.response?.data as { resultCode?: string } | undefined)?.resultCode;
+          if (status === 429 || resultCode === '9012') {
+            // Rate limited by LG. markRateLimited() logs a concise warning and
+            // opens a cooldown; suppress the noisy axios stack for this expected
+            // condition so the log isn't flooded.
+            this.markRateLimited();
+            return {};
+          }
           log('axios request error: ', err.response?.data, data);
           log(err.stack || 'No stack error');
         } else if (!(err instanceof NotConnectedError)) {
@@ -249,7 +306,12 @@ export class API {
     // Retrieve devices for each home
     for (let i = 0; i < homes.length; i++) {
       const resp = await this.getRequest('service/homes/' + homes[i].homeId);
-      devices.push(...resp.result.devices);
+      // A rate-limited/failed request returns {} (or lacks result.devices);
+      // guard so a throttle doesn't crash with "reading 'devices' of undefined".
+      const homeDevices = resp?.result?.devices;
+      if (Array.isArray(homeDevices)) {
+        devices.push(...homeDevices);
+      }
     }
 
     return devices;
@@ -263,10 +325,15 @@ export class API {
   public async getListHomes() {
     if (!this._homes) {
       const data = await this.getRequest('service/homes');
-      this._homes = data.result.item;
+      // Only cache a valid response — caching {} from a rate-limited/failed
+      // request would permanently pin the home list to empty until restart.
+      const item = data?.result?.item;
+      if (item) {
+        this._homes = item;
+      }
     }
 
-    return this._homes;
+    return this._homes ?? [];
   }
 
   /**

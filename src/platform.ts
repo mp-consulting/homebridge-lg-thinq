@@ -4,7 +4,7 @@ import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 import { Helper } from './helper.js';
 import { ThinQ } from './api/ThinQ.js';
 import { EventEmitter } from 'events';
-import { PlatformType, DEVICE_DISCOVERY_DELAY_MS, ONE_SECOND_MS } from './lib/constants.js';
+import { PlatformType, DEVICE_DISCOVERY_DELAY_MS, ONE_SECOND_MS, THINQ2_POLL_INTERVAL_MS } from './lib/constants.js';
 import { ManualProcessNeeded, NotConnectedError } from './errors/index.js';
 import type { Device } from './models/Device.js';
 import Characteristics from './characteristics/index.js';
@@ -239,13 +239,17 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
     const thinq2devices = this.accessories.filter(accessory => accessory.context.device.platform === PlatformType.ThinQ2);
 
     if (thinq2devices.length) {
-      // Start polling ThinQ2 devices at the configured interval
+      // ThinQ2 devices update in real time over MQTT (below); this REST poll is
+      // only a reconciliation fallback, so it runs on a conservative fixed
+      // interval rather than the ThinQ1 `refresh_interval`. Polling the whole
+      // device list every few seconds tripped LG's rate limit (HTTP 429 / 9012),
+      // which throttled the account and silently broke control commands.
       setInterval(async () => {
         const devices = await this.ThinQ.devices();
         devices.filter(device => device.platform === PlatformType.ThinQ2).forEach(device => {
           this.events.emit(device.id, device.snapshot);
         });
-      }, this.intervalTime);
+      }, THINQ2_POLL_INTERVAL_MS);
 
       this.log.info('Start MQTT listener for ThinQ2 devices');
       await this.ThinQ.registerMQTTListener((data) => {
