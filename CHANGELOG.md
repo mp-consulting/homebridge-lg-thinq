@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.34] - 2026-08-09
+
+### Changed
+
+- **Node.js support is now `^22.10.0 || ^24.0.0 || ^26.0.0`**: adds Node 26, which Homebridge 2.3.0 supports as of this release, and drops Node 20. Homebridge 2.x has never accepted Node 20 (it has required `^22 || ^24` since 2.0.0), so the previous range advertised a combination that could not actually run. CI now builds on Node 22.x, 24.x and 26.x.
+
 ## [1.0.31] - 2026-07-05
 
 ### Fixed

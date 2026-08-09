@@ -7,7 +7,7 @@ Homebridge plugin (`@mp-consulting/homebridge-lg-thinq`) for LG ThinQ smart appl
 ## Tech Stack
 
 - **Language**: TypeScript (strict, ES2022, ESM via NodeNext)
-- **Runtime**: Node.js ^20.18.0 || ^22.10.0 || ^24, Homebridge ^1.8.0 || ^2.0.0-beta
+- **Runtime**: Node.js ^22.10.0 || ^24.0.0 || ^26.0.0, Homebridge ^1.8.0 || ^2.0.0-beta
 - **Testing**: Vitest with coverage
 - **Linting**: ESLint 9 flat config with typescript-eslint
 - **Key deps**: `axios` + `axios-retry` (HTTP), `aws-iot-device-sdk` (MQTT), `node-forge` (crypto), `node-persist` (storage), `luxon` (dates)
