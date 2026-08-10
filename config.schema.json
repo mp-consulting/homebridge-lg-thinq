@@ -5,6 +5,13 @@
   "customUi": true,
   "strictValidation": false,
   "schema": {
+    "name": {
+      "title": "Name",
+      "type": "string",
+      "required": true,
+      "default": "LG ThinQ",
+      "description": "Plugin name as displayed in the homebridge log"
+    },
     "auth_mode": {
       "title": "Auth Mode",
       "type": "string",
@@ -265,6 +272,7 @@
     }
   },
   "layout": [
+    "name",
     "auth_mode",
     {
       "type": "flex",

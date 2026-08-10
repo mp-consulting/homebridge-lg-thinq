@@ -51,7 +51,8 @@ npm i -g homebridge-lg-thinq
 	  "id": "device id"
 	}
   ],
-  "platform": "LGThinQ"
+  "platform": "LGThinQ",
+  "name": "LG ThinQ"
 }
 
 ```
