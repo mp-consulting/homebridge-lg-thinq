@@ -15,7 +15,7 @@ export default defineConfig({
       exclude: ['src/**/*.{test,spec}.ts'],
     },
   },
-  esbuild: {
+  oxc: {
     target: 'es2022',
   },
 });
