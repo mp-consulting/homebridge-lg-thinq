@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.37] - 2026-09-10
+
+### Changed
+
+- **Dependencies**: Updated all dependencies to latest compatible versions, including a major bump for `commander` (14→15) — used only by the bundled CLI helper — along with `axios` ^1.20.0, `homebridge-lib` ^8.1.5, `qs` ^6.16.0 and `@homebridge/plugin-ui-utils` ^2.2.6, plus dev-only major bumps for `vitest` (4→5) and `@types/node` (25→26).
+
 ## [1.0.36] - 2026-08-10
 
 ### Fixed
