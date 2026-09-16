@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.38] - 2026-09-16
+
+### Fixed
+
+- **Login failed with `HTTP 403` in some regions** ([#16](https://github.com/mp-consulting/homebridge-lg-thinq/issues/16)). LG has started rejecting EMP authentication requests that arrive without a recognised `User-Agent`, which blocked setup entirely — clicking **Connect** in the plugin settings returned `HTTP 403` while the very same credentials worked in the official LG ThinQ app and on LG's web services. Two of the EMP calls sent no `User-Agent` at all: the headers shared by the login requests, and the `OAUTH_SECRETKEY` lookup used to sign the EMP session. Both now identify the plugin as the ThinQ app. Reported from Slovakia and Taiwan.
+
 ## [1.0.37] - 2026-09-10
 
 ### Changed
