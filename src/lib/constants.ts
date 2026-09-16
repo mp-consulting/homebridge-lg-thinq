@@ -8,6 +8,10 @@ export const API_CLIENT_ID = 'c713ea8e50f657534ff8b9d373dfebfc2ed70b88285c26b8ad
 
 export const APPLICATION_KEY = '6V1V8H2BN5P9ZQGOI5DAQ92YZBDO3EK9'; // for spx login
 
+// LG rejects EMP authentication requests from unrecognised clients with HTTP 403 in
+// some regions, so the EMP calls identify themselves as the official ThinQ app.
+export const EMP_USER_AGENT = 'LG ThinQ/5.0.11861 (iPhone; iOS 17.1; Scale/3.00)';
+
 export enum PlatformType {
   ThinQ1 = 'thinq1',
   ThinQ2 = 'thinq2',
