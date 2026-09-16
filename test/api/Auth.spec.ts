@@ -5,6 +5,7 @@ import { Gateway } from '../../src/api/Gateway.js';
 import { Session } from '../../src/api/Session.js';
 import type { Logger } from 'homebridge';
 import { AuthenticationError } from '../../src/errors/index.js';
+import * as constants from '../../src/lib/constants.js';
 
 describe('Auth', () => {
   let auth: Auth;
@@ -40,6 +41,7 @@ describe('Auth', () => {
     expect(headers['X-Device-Country']).toBe('US');
     expect(headers['X-Device-Language']).toBe('en-US');
     expect(headers['Content-Type']).toBe('application/x-www-form-urlencoded;charset=UTF-8');
+    expect(headers['User-Agent']).toBe(constants.EMP_USER_AGENT);
   });
 
   test('should login and return a session', async () => {
@@ -96,6 +98,13 @@ describe('Auth', () => {
     expect(session).toBeInstanceOf(Session);
     expect(session.accessToken).toBe('accessToken');
     expect(session.refreshToken).toBe('refreshToken');
+
+    // LG returns HTTP 403 for the secret-key lookup unless it carries a ThinQ app User-Agent.
+    expect(requestClient.get).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('searchKey'),
+      { headers: { 'User-Agent': constants.EMP_USER_AGENT } },
+    );
   });
 
   test('should throw AuthenticationError for invalid login', async () => {

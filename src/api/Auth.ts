@@ -96,7 +96,11 @@ export class Auth {
 
     // dynamic get secret key for emp signature
     const empSearchKeyUrl = this.gateway.login_base_url + 'searchKey?key_name=OAUTH_SECRETKEY&sever_type=OP';
-    const secretKeyResponse = await requestClient.get(empSearchKeyUrl);
+    const secretKeyResponse = await requestClient.get(empSearchKeyUrl, {
+      headers: {
+        'User-Agent': constants.EMP_USER_AGENT,
+      },
+    });
     const secretKey = secretKeyResponse.data.returnData;
 
     const timestamp = DateTime.utc().toRFC2822();
@@ -187,6 +191,7 @@ export class Auth {
       'Access-Control-Allow-Origin': '*',
       'Accept-Encoding': 'gzip, deflate, br',
       'Accept-Language': 'en-US,en;q=0.9',
+      'User-Agent': constants.EMP_USER_AGENT,
     };
   }
 
