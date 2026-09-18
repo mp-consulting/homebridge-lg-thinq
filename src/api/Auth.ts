@@ -42,8 +42,216 @@ export class Auth {
   public async login(username: string, password: string) {
     // get signature and timestamp in login form
     const hash = crypto.createHash('sha512');
+    const encrypted_password = hash.update(password).digest('hex');
 
-    return this.loginStep2(username, hash.update(password).digest('hex'));
+    // LG removed the legacy `searchKey?key_name=OAUTH_SECRETKEY` endpoint (it 404s in every
+    // region), so the EMP session flow can no longer be signed. Sign in through the new
+    // lgemembers.com account system instead, keeping the old path as a fallback in case LG
+    // restores it or a region is still served by it.
+    try {
+      return await this.loginNew(username, encrypted_password);
+    } catch (err: unknown) {
+      if (err instanceof AuthenticationError) {
+        throw err;
+      }
+
+      this.logger.debug('lgemembers.com sign-in failed, falling back to the legacy EMP flow:', err);
+      return await this.loginStep2(username, encrypted_password);
+    }
+  }
+
+  /**
+   * Signs in through LG's lgemembers.com account system.
+   *
+   * This replaces the legacy EMP session flow, whose `searchKey` secret lookup LG removed.
+   * The final token exchange is signed with the static `OAUTH_SECRET_KEY` — the same key
+   * `refreshNewToken` already uses — so no dynamic secret is needed.
+   *
+   * @param username - The user's username.
+   * @param encrypted_password - The SHA-512 hex digest of the user's password.
+   * @returns A promise that resolves with a `Session` instance.
+   */
+  public async loginNew(username: string, encrypted_password: string) {
+    const country = this.gateway.country_code;
+    const language = this.gateway.language_code;
+    const host = `https://${country.toLowerCase()}.${constants.LGACC_BASE_URL}`;
+    const headers = {
+      'Accept': '*/*',
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'X-Requested-With': 'XMLHttpRequest',
+      'Accept-Language': `${language},${country.toLowerCase()};q=0.9`,
+      'Origin': host,
+      'User-Agent': constants.EMP_USER_AGENT,
+    };
+
+    // 1. open the sign-in page to get a session cookie
+    const signInParams = {
+      callback_url: constants.LGACC_REDIRECT_URI,
+      client_id: constants.CLIENT_ID,
+      close_type: '0',
+      country: country,
+      language: language,
+      pre_login: '',
+      redirect_url: constants.LGACC_REDIRECT_URI,
+      state: 'signin',
+      svc_code: constants.SVC_CODE,
+      svc_integrated: 'Y',
+      ui_mode: 'light',
+      webview_yn: 'Y',
+    };
+    const pageResponse = await requestClient.get(`${host}/lgacc/service/v1/signin?` + qs.stringify(signInParams), {
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': headers['Accept-Language'],
+        'User-Agent': constants.EMP_USER_AGENT,
+      },
+    });
+    const cookie = this.firstCookie(pageResponse.headers['set-cookie']);
+
+    // 2. hand the hashed password over so LG can re-hash it with its own salt
+    const preLoginResponse = await requestClient.post(`${host}/lgacc/front/v1/signin/signInPre`, qs.stringify({
+      userAuth2: encrypted_password,
+      password_hash_prameter_flag: 'Y',
+      svc_list: 'SVC202,SVC710', // SVC202=LG SmartHome, SVC710=EMP OAuth
+    }), { headers: { ...headers, Cookie: cookie } });
+
+    // 3. authenticate — the user id travels RSA-encrypted
+    const accountResponse = await requestClient.post(`${host}/lgacc/front/v1/signin/signInAct`, qs.stringify({
+      clientId: constants.CLIENT_ID,
+      doneYn: '',
+      ipadYn: 'N',
+      itgTermsUseFlag: 'Y',
+      itgUserType: 'A',
+      local_country: country,
+      local_lang: language.split('-')[0],
+      skipYn: 'N',
+      svcCode: constants.SVC_CODE,
+      svc_code: constants.SVC_CODE,
+      userId: encodeURIComponent(this.encryptUserId(username)),
+      userPw: preLoginResponse.data,
+    }), { headers: { ...headers, Cookie: cookie } });
+
+    const account = accountResponse.data?.account;
+    if (!account) {
+      const { code, message } = accountResponse.data?.error || {};
+      if (code === 'MS.001.03') {
+        throw new AuthenticationError('Your account was already used to registered in ' + message + '.');
+      }
+
+      throw new AuthenticationError(message || accountResponse.data?.message
+        || 'LG rejected the sign-in. If you sign in to LG with Google, Apple or Facebook, use a token instead.');
+    }
+
+    // 4. complete the sign-in, which upgrades the session cookie
+    const loginSessionID = account.loginSessionID;
+    const loginUuid = crypto.randomUUID();
+    const completeResponse = await requestClient.post(`${host}/lgacc/front/v1/signin/signInComplete`, qs.stringify({
+      loginSessionID,
+      additionalInfo: encodeURIComponent(JSON.stringify({
+        uuid: loginUuid,
+        user_id: account.userID,
+        user_id_type: account.userIDType,
+        svc_integrated: 'Y',
+      })),
+      autoYn: 'N',
+      deviceId: this.randomString(32),
+      ipadYn: 'N',
+      local_country: country,
+      local_lang: language.split('-')[0],
+      serviceYn: 'Y',
+      svcCode: constants.SVC_CODE,
+      svc_code: constants.SVC_CODE,
+      uuid: loginUuid,
+    }), { headers: { ...headers, Cookie: cookie } });
+
+    if (completeResponse.data?.code !== 'SUCCESS') {
+      throw new TokenError(completeResponse.data?.message || JSON.stringify(completeResponse.data));
+    }
+    const sessionCookie = this.firstCookie(completeResponse.headers['set-cookie']) || cookie;
+
+    // 5. mark the session as issued
+    await requestClient.post(`${host}/lgacc/front/v1/signin/token`, qs.stringify({
+      loginSessionID,
+      uuid: loginUuid,
+    }), { headers: { ...headers, Cookie: sessionCookie } });
+
+    // 6. exchange the session for an OAuth authorization code
+    const oauthResponse = await requestClient.post(`${host}/lgacc/front/v1/signin/oauth`, qs.stringify({
+      loginSessionID,
+      accountType: 'LGE',
+      clientId: constants.CLIENT_ID,
+      countryCode: country,
+      local_country: country,
+      local_lang: language.split('-')[0],
+      redirectUri: constants.LGACC_REDIRECT_URI,
+      state: 'signin',
+      svc_code: constants.SVC_CODE,
+      userName: username,
+    }), { headers: { ...headers, Cookie: sessionCookie } });
+
+    const redirectUri = oauthResponse.data?.redirect_uri;
+    if (!redirectUri) {
+      throw new TokenError(oauthResponse.data?.message || JSON.stringify(oauthResponse.data));
+    }
+    const code = qs.parse(decodeURIComponent(redirectUri).split('?')[1])?.code;
+    if (!code) {
+      throw new TokenError('LG returned no authorization code.');
+    }
+
+    // 7. trade the code for tokens, signed with the static OAuth secret
+    return await this.requestToken({ code: code as string, grant_type: 'authorization_code' });
+  }
+
+  /**
+   * RSA-encrypts a user id with LG's account public key, as the sign-in form does.
+   */
+  protected encryptUserId(username: string) {
+    return crypto.publicEncrypt({
+      key: constants.LGACC_PUBLIC_KEY,
+      padding: crypto.constants.RSA_PKCS1_PADDING,
+    }, Buffer.from(username)).toString('base64');
+  }
+
+  /**
+   * Extracts the cookie pair from a `set-cookie` header, dropping its attributes.
+   */
+  protected firstCookie(setCookie?: string[]) {
+    return setCookie?.[0]?.split(';')[0] || '';
+  }
+
+  /**
+   * Generates a random alphanumeric string of the requested length.
+   */
+  protected randomString(length: number) {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    return Array.from({ length }, () => characters[crypto.randomInt(characters.length)]).join('');
+  }
+
+  /**
+   * Exchanges an authorization code for a session at the country's OAuth backend.
+   */
+  protected async requestToken(data: Record<string, string>, backendUrl?: string) {
+    const tokenData = { ...data, redirect_uri: constants.LGACC_REDIRECT_URI };
+    const timestamp = DateTime.utc().toRFC2822();
+    const requestUrl = '/oauth/1.0/oauth2/token?' + qs.stringify(tokenData);
+
+    const res = await requestClient.post((backendUrl || this.lgeapi_url) + 'oauth/1.0/oauth2/token',
+      qs.stringify(tokenData),
+      {
+        headers: {
+          'x-lge-app-os': 'ADR',
+          'x-lge-appkey': constants.CLIENT_ID,
+          'x-lge-oauth-signature': this.signature(`${requestUrl}\n${timestamp}`, constants.OAUTH_SECRET_KEY),
+          'x-lge-oauth-date': timestamp,
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+    const token = res.data;
+
+    this.lgeapi_url = token.oauth2_backend_url || this.lgeapi_url;
+
+    return new Session(token.access_token, token.refresh_token, token.expires_in);
   }
 
   /**
@@ -145,31 +353,13 @@ export class Auth {
 
     const redirect_uri = new URL(authorize.redirect_uri);
 
-    const tokenData = {
-      code: redirect_uri.searchParams.get('code'),
-      grant_type: 'authorization_code',
-      redirect_uri: empData.redirect_uri,
-    };
-
-    const requestUrl = '/oauth/1.0/oauth2/token?' + qs.stringify(tokenData);
-
-    const res = await requestClient.post(redirect_uri.searchParams.get('oauth2_backend_url') + 'oauth/1.0/oauth2/token',
-      qs.stringify(tokenData),
+    return await this.requestToken(
       {
-        headers: {
-          'x-lge-app-os': 'ADR',
-          'x-lge-appkey': constants.CLIENT_ID,
-          'x-lge-oauth-signature': this.signature(`${requestUrl}\n${timestamp}`, constants.OAUTH_SECRET_KEY),
-          'x-lge-oauth-date': timestamp,
-          'Accept': 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-    const token = res.data;
-
-    this.lgeapi_url = token.oauth2_backend_url || this.lgeapi_url;
-
-    return new Session(token.access_token, token.refresh_token, token.expires_in);
+        code: redirect_uri.searchParams.get('code') || '',
+        grant_type: 'authorization_code',
+      },
+      redirect_uri.searchParams.get('oauth2_backend_url') || undefined,
+    );
   }
 
   /**
