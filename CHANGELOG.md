@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.39] - 2026-09-19
+
+### Fixed
+
+- **Setup failed with `Request failed with status code 404`** ([#16](https://github.com/mp-consulting/homebridge-lg-thinq/issues/16)). LG removed `searchKey?key_name=OAUTH_SECRETKEY`, the endpoint that handed out the secret used to sign the EMP session request — it now returns 404 on every regional host, while the neighbouring `preLogin` still answers, so the old sign-in could not be completed and every fresh login failed. Existing installs kept working, because token refresh signs with a static key and never used that endpoint; only new sign-ins broke. Sign-in now goes through the `lgemembers.com` account system LG migrated to, ending in an OAuth code exchange signed with that same static key, so the removed endpoint is no longer needed anywhere. LG has also retired the `signInPre` password re-hashing step — its own sign-in page has it commented out — so the password digest is sent straight to `signInAct`. Diagnosed and verified from Taiwan by [@joe50304](https://github.com/joe50304), after the earlier report from Slovakia by [@neoncek](https://github.com/neoncek).
+
 ## [1.0.38] - 2026-09-16
 
 ### Fixed
