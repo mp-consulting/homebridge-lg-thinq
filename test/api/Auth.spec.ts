@@ -88,7 +88,6 @@ describe('Auth', () => {
     const get = vi.spyOn(requestClient, 'get')
       .mockResolvedValueOnce({ data: '<html/>', headers: { 'set-cookie': ['JSESSIONID=abc; Path=/; HttpOnly'] } });
     const post = vi.spyOn(requestClient, 'post')
-      .mockResolvedValueOnce({ data: 'saltedPassword' }) // signInPre
       .mockResolvedValueOnce({ data: { account: { loginSessionID: 'session123', userID: 'testUser', userIDType: 'LGE' } } })
       .mockResolvedValueOnce({ data: { code: 'SUCCESS' }, headers: { 'set-cookie': ['JSESSIONID=def; Path=/'] } })
       .mockResolvedValueOnce({ data: 'SUCCESS' }) // token
@@ -103,14 +102,20 @@ describe('Auth', () => {
     // The sign-in page is opened on the country's lgemembers host, not the retired spx host.
     expect(get.mock.calls[0][0]).toContain('https://sk.lgemembers.com/lgacc/service/v1/signin?');
 
+    // LG's page no longer calls signInPre, and signInAct rejects its output — the SHA-512
+    // digest goes straight to signInAct, which is the first POST of the flow.
+    expect(post.mock.calls[0][0]).toContain('/lgacc/front/v1/signin/signInAct');
+    expect(post.mock.calls[0][1]).toContain('userPw=hashedPassword');
+    expect(post.mock.calls.some(call => String(call[0]).includes('signInPre'))).toBe(false);
+
     // The cookie from signInComplete supersedes the one from the sign-in page.
-    expect(post.mock.calls[2][2]?.headers?.Cookie).toBe('JSESSIONID=abc');
-    expect(post.mock.calls[4][2]?.headers?.Cookie).toBe('JSESSIONID=def');
+    expect(post.mock.calls[1][2]?.headers?.Cookie).toBe('JSESSIONID=abc');
+    expect(post.mock.calls[3][2]?.headers?.Cookie).toBe('JSESSIONID=def');
 
     // The code is exchanged at the country's OAuth backend, signed with the static secret.
-    expect(post.mock.calls[5][0]).toBe('https://sk.lgeapi.com/oauth/1.0/oauth2/token');
-    expect(post.mock.calls[5][1]).toContain('code=theCode');
-    expect(post.mock.calls[5][2]?.headers?.['x-lge-oauth-signature']).toEqual(expect.any(String));
+    expect(post.mock.calls[4][0]).toBe('https://sk.lgeapi.com/oauth/1.0/oauth2/token');
+    expect(post.mock.calls[4][1]).toContain('code=theCode');
+    expect(post.mock.calls[4][2]?.headers?.['x-lge-oauth-signature']).toEqual(expect.any(String));
 
     // No request touches the removed searchKey endpoint.
     expect([...get.mock.calls, ...post.mock.calls].some(call => String(call[0]).includes('searchKey'))).toBe(false);
@@ -120,7 +125,6 @@ describe('Auth', () => {
     const { requestClient } = await import('../../src/api/request.js');
     vi.spyOn(requestClient, 'get').mockResolvedValueOnce({ data: '<html/>', headers: {} });
     vi.spyOn(requestClient, 'post')
-      .mockResolvedValueOnce({ data: 'saltedPassword' })
       .mockResolvedValueOnce({ data: { error: { code: 'MS.001.02', message: 'Wrong password' } } });
 
     await expect(auth.loginNew('testUser', 'hashedPassword')).rejects.toThrow(AuthenticationError);

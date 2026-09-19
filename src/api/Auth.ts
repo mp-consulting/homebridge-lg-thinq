@@ -108,14 +108,9 @@ export class Auth {
     });
     const cookie = this.firstCookie(pageResponse.headers['set-cookie']);
 
-    // 2. hand the hashed password over so LG can re-hash it with its own salt
-    const preLoginResponse = await requestClient.post(`${host}/lgacc/front/v1/signin/signInPre`, qs.stringify({
-      userAuth2: encrypted_password,
-      password_hash_prameter_flag: 'Y',
-      svc_list: 'SVC202,SVC710', // SVC202=LG SmartHome, SVC710=EMP OAuth
-    }), { headers: { ...headers, Cookie: cookie } });
-
-    // 3. authenticate — the user id travels RSA-encrypted
+    // 2. authenticate — the user id travels RSA-encrypted, the password as its SHA-512 digest.
+    // LG's own sign-in page has commented out its `signInPre` re-hashing step, and `signInAct`
+    // now rejects that endpoint's output, so the digest is sent straight through.
     const accountResponse = await requestClient.post(`${host}/lgacc/front/v1/signin/signInAct`, qs.stringify({
       clientId: constants.CLIENT_ID,
       doneYn: '',
@@ -128,7 +123,7 @@ export class Auth {
       svcCode: constants.SVC_CODE,
       svc_code: constants.SVC_CODE,
       userId: encodeURIComponent(this.encryptUserId(username)),
-      userPw: preLoginResponse.data,
+      userPw: encrypted_password,
     }), { headers: { ...headers, Cookie: cookie } });
 
     const account = accountResponse.data?.account;
@@ -142,7 +137,7 @@ export class Auth {
         || 'LG rejected the sign-in. If you sign in to LG with Google, Apple or Facebook, use a token instead.');
     }
 
-    // 4. complete the sign-in, which upgrades the session cookie
+    // 3. complete the sign-in, which upgrades the session cookie
     const loginSessionID = account.loginSessionID;
     const loginUuid = crypto.randomUUID();
     const completeResponse = await requestClient.post(`${host}/lgacc/front/v1/signin/signInComplete`, qs.stringify({
@@ -169,13 +164,13 @@ export class Auth {
     }
     const sessionCookie = this.firstCookie(completeResponse.headers['set-cookie']) || cookie;
 
-    // 5. mark the session as issued
+    // 4. mark the session as issued
     await requestClient.post(`${host}/lgacc/front/v1/signin/token`, qs.stringify({
       loginSessionID,
       uuid: loginUuid,
     }), { headers: { ...headers, Cookie: sessionCookie } });
 
-    // 6. exchange the session for an OAuth authorization code
+    // 5. exchange the session for an OAuth authorization code
     const oauthResponse = await requestClient.post(`${host}/lgacc/front/v1/signin/oauth`, qs.stringify({
       loginSessionID,
       accountType: 'LGE',
@@ -198,7 +193,7 @@ export class Auth {
       throw new TokenError('LG returned no authorization code.');
     }
 
-    // 7. trade the code for tokens, signed with the static OAuth secret
+    // 6. trade the code for tokens, signed with the static OAuth secret
     return await this.requestToken({ code: code as string, grant_type: 'authorization_code' });
   }
 
