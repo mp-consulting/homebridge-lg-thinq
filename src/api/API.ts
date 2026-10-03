@@ -59,6 +59,10 @@ export class API {
   protected rateLimitedUntil = 0;
   protected rateLimitBackoffMs = 0;
 
+  // In-flight token refresh shared by concurrent callers, so a burst of requests that all
+  // hit TokenExpiredError triggers one refresh instead of one per request.
+  protected refreshing: Promise<void> | null = null;
+
   constructor(
     protected country: string = 'US',
     protected language: string = 'en-US',
@@ -412,7 +416,7 @@ export class API {
 
     const data = await this.thinq1PostRequest('rti/rtiResult', { workList: [{ deviceId: device_id, workId: work_id }] });
 
-    if (!('workList' in data) || !('returnCode' in data.workList)) {
+    if (!data?.workList || typeof data.workList !== 'object' || !('returnCode' in data.workList)) {
       return null;
     }
 
@@ -483,16 +487,23 @@ export class API {
   }
 
   public async refreshNewToken(session: Session | null = null) {
-    session = session || this.session;
-    this.session = await this.auth.refreshNewToken(session);
-
-    this.jsessionId = await this.auth.getJSessionId(this.session.accessToken);
+    if (!this.refreshing) {
+      this.refreshing = (async () => {
+        this.session = await this.auth.refreshNewToken(session || this.session);
+        this.jsessionId = await this.auth.getJSessionId(this.session.accessToken);
+      })().finally(() => {
+        this.refreshing = null;
+      });
+    }
+    return this.refreshing;
   }
 
   async thinq1PostRequest(endpoint: string, data: Record<string, unknown>) {
-    const response = await this.postRequest(this._gateway?.thinq1_url + endpoint, {
+    const gateway = await this.gateway();
+    const response = await this.postRequest(gateway.thinq1_url + endpoint, {
       lgedmRoot: data,
     });
-    return response.lgedmRoot;
+    // a failed request resolves to {}; callers get an empty root rather than undefined
+    return response?.lgedmRoot ?? {};
   }
 }

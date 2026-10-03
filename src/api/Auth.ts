@@ -55,7 +55,8 @@ export class Auth {
         throw err;
       }
 
-      this.logger.debug('lgemembers.com sign-in failed, falling back to the legacy EMP flow:', err);
+      // log only the message: an axios error carries the request body (password digest)
+      this.logger.debug('lgemembers.com sign-in failed, falling back to the legacy EMP flow:', (err as Error)?.message || String(err));
       return await this.loginStep2(username, encrypted_password);
     }
   }
@@ -246,7 +247,8 @@ export class Auth {
 
     this.lgeapi_url = token.oauth2_backend_url || this.lgeapi_url;
 
-    return new Session(token.access_token, token.refresh_token, token.expires_in);
+    // `expires_in` is a lifetime in seconds; Session stores an absolute epoch
+    return new Session(token.access_token, token.refresh_token, Session.expiryFromNow(token.expires_in));
   }
 
   /**
@@ -284,8 +286,8 @@ export class Auth {
       const loginResponse = await requestClient.post(loginUrl, qs.stringify(data), { headers });
       account = loginResponse.data.account;
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data: { error: { code: string; message: string } } } };
-      if (!axiosErr.response) {
+      const axiosErr = err as { response?: { data?: { error?: { code?: string; message?: string } } } };
+      if (!axiosErr.response?.data?.error) {
         throw err;
       }
 
@@ -294,7 +296,10 @@ export class Auth {
         throw new AuthenticationError('Your account was already used to registered in ' + message + '.');
       }
 
-      throw new AuthenticationError(message);
+      throw new AuthenticationError(message || 'LG rejected the sign-in.');
+    }
+    if (!account) {
+      throw new AuthenticationError('LG returned no account for this sign-in.');
     }
 
     // dynamic get secret key for emp signature
@@ -339,8 +344,12 @@ export class Auth {
       const authorizeResponse = await requestClient.get(empUrl.href, { headers: empHeaders });
       authorize = authorizeResponse.data;
     } catch (err: unknown) {
-      const axiosErr = err as { response: { data: { error: { message: string } } } };
-      throw new AuthenticationError(axiosErr.response.data.error.message);
+      const axiosErr = err as { response?: { data?: { error?: { message?: string } } } };
+      const message = axiosErr.response?.data?.error?.message;
+      if (!message) {
+        throw err;
+      }
+      throw new AuthenticationError(message);
     }
     if (authorize.status !== 1) {
       throw new TokenError(authorize.message || authorize);
@@ -386,8 +395,14 @@ export class Auth {
    * @param accessToken - The access token for the session.
    */
   public async handleNewTerm(accessToken: string) {
-    const showTermUrl = 'common/showTerms?callback_url=lgaccount.lgsmartthinq:/updateTerms'
-      + '&country=VN&language=en-VN&division=ha:T20&terms_display_type=3&svc_list=SVC202';
+    const showTermUrl = 'common/showTerms?' + qs.stringify({
+      callback_url: 'lgaccount.lgsmartthinq:/updateTerms',
+      country: this.gateway.country_code,
+      language: this.gateway.language_code,
+      division: 'ha:T20',
+      terms_display_type: 3,
+      svc_list: 'SVC202',
+    });
     const showTermResponse = await requestClient.get(this.gateway.login_base_url + showTermUrl, {
       headers: {
         'X-Login-Session': accessToken,
@@ -395,11 +410,16 @@ export class Auth {
     });
     const showTermHtml = showTermResponse.data;
 
+    const signature = String(showTermHtml).match(/signature[\s]+:[\s]+"([^"]+)"/)?.[1];
+    const tStamp = String(showTermHtml).match(/tStamp[\s]+:[\s]+"([^"]+)"/)?.[1];
+    if (!signature || !tStamp) {
+      throw new TokenError('Could not read the terms signature from LG. Open the LG ThinQ app and accept the new terms.');
+    }
     const headers = {
       ...this.defaultEmpHeaders,
       'X-Login-Session': accessToken,
-      'X-Signature': showTermHtml.match(/signature[\s]+:[\s]+"([^"]+)"/)[1],
-      'X-Timestamp': showTermHtml.match(/tStamp[\s]+:[\s]+"([^"]+)"/)[1],
+      'X-Signature': signature,
+      'X-Timestamp': tStamp,
     };
 
     const accountTermUrl = 'emp/v2.0/account/user/terms?opt_term_cond=001&term_data=SVC202&itg_terms_use_flag=Y&dummy_terms_use_flag=Y';
@@ -410,7 +430,7 @@ export class Auth {
 
     const termInfoUrl = 'emp/v2.0/info/terms?opt_term_cond=001&only_service_terms_flag=&itg_terms_use_flag=Y&term_data=SVC202';
     const termInfoResponse = await requestClient.get(this.gateway.emp_base_url + termInfoUrl, { headers });
-    const infoTerms = termInfoResponse.data.info.terms;
+    const infoTerms = termInfoResponse.data?.info?.terms || [];
 
     const newTermAgreeNeeded = infoTerms.filter((term: { termsID: string }) => {
       return accountTerms.indexOf(term.termsID) === -1;
@@ -513,7 +533,7 @@ export class Auth {
     };
     const tokenResponse = await requestClient.post(tokenUrl, qs.stringify(data), { headers });
 
-    session.newToken(tokenResponse.data.access_token, parseInt(tokenResponse.data.expires_in));
+    session.newToken(tokenResponse.data.access_token, Session.expiryFromNow(tokenResponse.data.expires_in));
 
     return session;
   }

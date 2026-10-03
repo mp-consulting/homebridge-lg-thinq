@@ -4,6 +4,20 @@ import { HomebridgePluginUiServer, RequestError } from '@homebridge/plugin-ui-ut
 import { DeviceType } from '../dist/lib/constants.js';
 
 /**
+ * API and Auth log on their error and fallback paths (e.g. when the ThinQ v1 gateway
+ * login fails, which is normal). Without a logger those paths threw a TypeError and
+ * failed the whole request.
+ */
+const logger = {
+  debug: () => {},
+  info: (...args) => console.log('[LG ThinQ UI]', ...args),
+  warn: (...args) => console.warn('[LG ThinQ UI]', ...args),
+  error: (...args) => console.error('[LG ThinQ UI]', ...args),
+  log: (...args) => console.log('[LG ThinQ UI]', ...args),
+  success: (...args) => console.log('[LG ThinQ UI]', ...args),
+};
+
+/**
  * LG ThinQ Plugin UI Server
  */
 class LGThinQUiServer extends HomebridgePluginUiServer {
@@ -36,9 +50,9 @@ class LGThinQUiServer extends HomebridgePluginUiServer {
     this.validate(payload, ['username', 'password', 'country', 'language']);
 
     try {
-      const api = new API(payload.country, payload.language);
+      const api = new API(payload.country, payload.language, logger);
       const gateway = await api.gateway();
-      const auth = new Auth(gateway);
+      const auth = new Auth(gateway, logger);
       const session = await auth.login(payload.username, payload.password);
 
       return {
@@ -60,7 +74,7 @@ class LGThinQUiServer extends HomebridgePluginUiServer {
     this.validate(payload, ['refresh_token', 'country', 'language']);
 
     try {
-      const api = new API(payload.country, payload.language);
+      const api = new API(payload.country, payload.language, logger);
       api.setRefreshToken(payload.refresh_token);
       await api.ready();
 
