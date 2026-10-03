@@ -115,18 +115,27 @@ export abstract class BaseStatus {
   }
 
   /**
-   * Calculate filter life percentage.
+   * Calculate the REMAINING filter life as a percentage.
    * @param currentTimeKey - Key for current usage time
    * @param maxTimeKey - Key for max filter time
-   * @returns Percentage of filter life remaining (0-100)
+   * @returns Percentage of filter life remaining, clamped to 0-100 (100 = new filter, 0 = worn out).
+   *          Returns 0 when the max time is unknown.
    */
-  protected getFilterLifePercent(currentTimeKey: string, maxTimeKey: string): number {
+  protected getFilterRemainingPercent(currentTimeKey: string, maxTimeKey: string): number {
     const maxTime = this.getInt(maxTimeKey);
-    if (!maxTime) {
+    if (maxTime <= 0) {
       return 0;
     }
-    const currentTime = this.getInt(currentTimeKey);
-    return Math.round((1 - (currentTime / maxTime)) * 100);
+    const currentTime = Math.max(0, this.getInt(currentTimeKey));
+    const remaining = Math.round((1 - (currentTime / maxTime)) * 100);
+    return Math.max(0, Math.min(100, remaining));
+  }
+
+  /**
+   * @deprecated Use getFilterRemainingPercent (this always returned the remaining life, not the used life).
+   */
+  protected getFilterLifePercent(currentTimeKey: string, maxTimeKey: string): number {
+    return this.getFilterRemainingPercent(currentTimeKey, maxTimeKey);
   }
 }
 

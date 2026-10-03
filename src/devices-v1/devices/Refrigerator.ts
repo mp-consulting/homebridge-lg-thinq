@@ -24,32 +24,31 @@ export default class Refrigerator extends RefrigeratorV2 {
     await this.platform.ThinQ?.thinq1DeviceControl(device, key, temp);
   }
 
-  async setExpressMode(value: CharacteristicValue) {
+  /**
+   * Shared ThinQ1 on/off toggle (IcePlus, ExpressFridge, EcoFriendly).
+   */
+  protected async setV1Toggle(key: string, value: CharacteristicValue) {
     const device: Device = this.accessory.context.device;
-    const On = device.deviceModel.enumValue('IcePlus', '@CP_ON_EN_W');
-    const Off = device.deviceModel.enumValue('IcePlus', '@CP_OFF_EN_W');
+    const On = device.deviceModel.enumValue(key, '@CP_ON_EN_W');
+    const Off = device.deviceModel.enumValue(key, '@CP_OFF_EN_W');
 
-    this.platform.ThinQ?.thinq1DeviceControl(device, 'IcePlus', value ? On : Off);
+    await this.platform.ThinQ?.thinq1DeviceControl(device, key, value ? On : Off);
+  }
+
+  async setExpressMode(value: CharacteristicValue) {
+    await this.setV1Toggle('IcePlus', value);
   }
 
   async setExpressFridge(value: CharacteristicValue) {
-    const device: Device = this.accessory.context.device;
-    const On = device.deviceModel.enumValue('ExpressFridge', '@CP_ON_EN_W');
-    const Off = device.deviceModel.enumValue('ExpressFridge', '@CP_OFF_EN_W');
-
-    this.platform.ThinQ?.thinq1DeviceControl(device, 'ExpressFridge', value ? On : Off);
+    await this.setV1Toggle('ExpressFridge', value);
   }
 
   async setEcoFriendly(value: CharacteristicValue) {
-    const device: Device = this.accessory.context.device;
-    const On = device.deviceModel.enumValue('EcoFriendly', '@CP_ON_EN_W');
-    const Off = device.deviceModel.enumValue('EcoFriendly', '@CP_OFF_EN_W');
-
-    this.platform.ThinQ?.thinq1DeviceControl(device, 'EcoFriendly', value ? On : Off);
+    await this.setV1Toggle('EcoFriendly', value);
   }
 
   public get Status() {
-    return new Status(this.accessory.context.device.snapshot?.refState, this.accessory.context.device.deviceModel);
+    return this.getStatus(Status, 'refState');
   }
 }
 

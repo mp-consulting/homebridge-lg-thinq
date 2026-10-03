@@ -3,7 +3,7 @@ import { BaseDevice } from '../baseDevice.js';
 import type { LGThinQHomebridgePlatform } from '../platform.js';
 import type { CharacteristicValue, Logger, PlatformAccessory, Service } from 'homebridge';
 import type { Device } from '../models/Device.js';
-import { STYLER_NOT_RUNNING_STATUS, ONE_DAY_IN_SECONDS } from '../lib/constants.js';
+import { STYLER_NOT_RUNNING_STATUS, ONE_DAY_IN_SECONDS, HUNDRED_MS } from '../lib/constants.js';
 import { toSeconds } from '../utils/normalize.js';
 import { BaseStatus } from '../status/BaseStatus.js';
 
@@ -58,11 +58,14 @@ export default class Styler extends BaseDevice {
       this.Status.isError ? Characteristic.StatusFault.GENERAL_FAULT : Characteristic.StatusFault.NO_FAULT);
   }
 
+  /**
+   * Remote control of the styler is not supported: revert the HomeKit toggle to the actual state.
+   */
   async setActive(value: CharacteristicValue) {
     void value;
-    if (this.Status.isRemoteStartOn) {
-      // turn on styler
-    }
+    setTimeout(() => {
+      this.serviceStyler.updateCharacteristic(this.platform.Characteristic.Active, this.Status.isPowerOn ? 1 : 0);
+    }, HUNDRED_MS);
   }
 
   public get Status() {

@@ -25,7 +25,12 @@ export interface DeviceDescriptor {
   homeKitCategory: number;
   /** Whether this device uses the Television service and must be published as an external accessory */
   externalAccessory?: boolean;
-  /** Snapshot key for status data */
+  /**
+   * Snapshot key for nested status data (e.g. snapshot.refState).
+   * Omit for devices whose snapshot uses flat dotted root keys
+   * (e.g. snapshot['airState.operation'] for AC / air purifier / dehumidifier);
+   * the whole snapshot is then passed to the Status class.
+   */
   snapshotKey?: string;
   /** Default configuration values */
   configDefaults?: Record<string, unknown>;
@@ -43,7 +48,6 @@ export class DeviceRegistry {
       v2Implementation: () => import('../devices/AeroTower.js').then(m => m.default),
       v1Implementation: () => null,
       homeKitCategory: Categories.AIR_PURIFIER,
-      snapshotKey: 'airState',
       configDefaults: { air_fast_mode: false },
     }],
     ['AIR_PURIFIER', {
@@ -51,7 +55,6 @@ export class DeviceRegistry {
       v2Implementation: () => import('../devices/AirPurifier.js').then(m => m.default),
       v1Implementation: () => import('../devices-v1/devices/AirPurifier.js').then(m => m.default),
       homeKitCategory: Categories.AIR_PURIFIER,
-      snapshotKey: 'airState',
       configDefaults: { air_fast_mode: false },
     }],
     ['REFRIGERATOR', {
@@ -107,7 +110,7 @@ export class DeviceRegistry {
       v2Implementation: () => import('../devices/WasherDryer2.js').then(m => m.default),
       v1Implementation: () => null,
       homeKitCategory: Categories.OTHER,
-      snapshotKey: 'washerDryer',
+      snapshotKey: 'washer', // WASH_TOWER_2 reports the washer under snapshot.washer
       configDefaults: {
         washer_trigger: false,
         washer_door_lock: false,
@@ -140,14 +143,12 @@ export class DeviceRegistry {
       v2Implementation: () => import('../devices/Dehumidifier.js').then(m => m.default),
       v1Implementation: () => null,
       homeKitCategory: Categories.AIR_DEHUMIDIFIER,
-      snapshotKey: 'dehumidifierState',
     }],
     ['AC', {
       type: 'AC',
       v2Implementation: () => import('../devices/AirConditioner.js').then(m => m.default),
       v1Implementation: () => import('../devices-v1/devices/AC.js').then(m => m.default),
       homeKitCategory: Categories.AIR_CONDITIONER,
-      snapshotKey: 'airState',
       configDefaults: {
         ac_swing_mode: 'BOTH',
         ac_air_quality: false,
@@ -238,7 +239,8 @@ export class DeviceRegistry {
   }
 
   /**
-   * Get snapshot key for a device type
+   * Get snapshot key for a device type.
+   * Returns undefined when the device uses flat root keys and the whole snapshot should be used.
    */
   public static getSnapshotKey(type: string): string | undefined {
     const descriptor = this.DEVICES.get(type);
