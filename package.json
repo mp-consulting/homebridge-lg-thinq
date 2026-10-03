@@ -83,6 +83,8 @@
     "qs": "^6.16.0"
   },
   "overrides": {
+    "@nestjs/platform-fastify": "^12.1.2",
+    "fastify": "^5.12.5",
     "glob": "^13.0.0",
     "help-me": {
       "glob": "^13.0.0"
