@@ -68,4 +68,27 @@ describe('ThinQ.deviceControl coercion', () => {
     const sentValues3 = ((thinq as any).api.sendCommandToDevice as ReturnType<typeof vi.fn>).mock.calls[0][1];
     expect((sentValues3 as any).dataSetList.mode).toBe('1');
   });
+
+  test('does not mutate the caller\'s values object', async () => {
+    (thinq as any).deviceModel.dev1 = { value: () => ({ type: ValueType.Bit }) };
+    const values: any = { dataKey: 'power', dataValue: true, nested: { flag: false } };
+
+    await thinq.deviceControl('dev1', values);
+
+    expect(values).toEqual({ dataKey: 'power', dataValue: true, nested: { flag: false } });
+    const sent = ((thinq as any).api.sendCommandToDevice as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(sent).toMatchObject({ dataValue: 1, nested: { flag: 0 } });
+  });
+
+  test('serves the device model from memory after the first load', async () => {
+    const getItem = vi.fn().mockResolvedValue({ Info: { version: '1.0' }, Value: {} });
+    (thinq as any).persist = { getItem, setItem: vi.fn() };
+    const device: any = { id: 'dev2', type: 'AC', data: { modelJsonUri: 'x' } };
+
+    const first = await (thinq as any).loadDeviceModel(device);
+    const second = await (thinq as any).loadDeviceModel(device);
+
+    expect(second).toBe(first);
+    expect(getItem).toHaveBeenCalledTimes(1);
+  });
 });

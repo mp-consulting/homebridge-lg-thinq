@@ -147,12 +147,11 @@
     });
   };
 
-  // Escape HTML for XSS prevention
-  const escapeHtml = text => {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  };
+  // Escape HTML for XSS prevention. Also escapes quotes: the result is used inside
+  // attribute values (value="...", data-device-id="..."), where serialising a text
+  // node's innerHTML would leave `"` intact and allow attribute injection.
+  const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' };
+  const escapeHtml = text => String(text ?? '').replace(/[&<>"']/g, ch => HTML_ESCAPES[ch]);
 
   // ── Device list ────────────────────────────────────────────────
 

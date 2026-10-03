@@ -98,6 +98,10 @@ export default class Persist {
    */
   async init() {
     await this.migrateLegacyFiles();
+    // The store holds the MQTT private key and cached account data: keep the directory
+    // owner-only (node-persist writes its files with the default umask).
+    await Fs.mkdir(this.dir, { recursive: true, mode: 0o700 }).catch(() => {});
+    await Fs.chmod(this.dir, 0o700).catch(() => {});
     this.persist = this.persist || NodePersist.create({ dir: this.dir });
     const backupDir = Path.resolve(this.dir, '..', '_backups');
     try {

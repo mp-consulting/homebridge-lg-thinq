@@ -3,9 +3,9 @@ import { API } from './API.js';
 import type { LGThinQHomebridgePlatform } from '../platform.js';
 import type { DeviceData } from '../models/Device.js';
 import { Device } from '../models/Device.js';
-import { DeviceType, PlatformType, MQTT_RETRY_DELAY_MS, REQUEST_TIMEOUT_MS } from '../lib/constants.js';
+import { DeviceType, PlatformType, MQTT_RETRY_DELAY_MS, MQTT_RECONNECT_DELAY_MS, MQTT_SLOW_RETRY_DELAY_MS } from '../lib/constants.js';
 import { DeviceModel, ValueType } from '../models/DeviceModel.js';
-import { randomUUID } from 'crypto';
+import { generateKeyPairSync, randomUUID } from 'crypto';
 import * as Path from 'path';
 import * as FS from 'fs';
 import forge from 'node-forge';
@@ -15,6 +15,7 @@ import { PLUGIN_NAME } from '../settings.js';
 import { device as awsIotDevice } from 'aws-iot-device-sdk';
 import { URL } from 'url';
 import Persist from '../lib/Persist.js';
+import { rootCAForMqttHost } from '../lib/rootCAs.js';
 
 export type WorkId = string;
 
@@ -103,6 +104,13 @@ export class ThinQ {
   }
 
   protected async loadDeviceModel(device: Device) {
+    // pollMonitor runs every few seconds per device; serve the parsed model from memory
+    // instead of re-reading and re-parsing it from disk each time
+    const cached = this.deviceModel[device.id];
+    if (cached) {
+      return device.deviceModel = cached;
+    }
+
     let deviceModel = await this.persist.getItem(device.id);
     if (!deviceModel) {
       this.logger.debug('[' + device.id + '] Device model cache missed.');
@@ -182,6 +190,8 @@ export class ThinQ {
     opts: { quiet?: boolean } = {}) {
     const id = device instanceof Device ? device.id : device;
     const model: DeviceModel | undefined = this.deviceModel[id];
+    // coercion below rewrites values in place; work on a copy so callers' objects are untouched
+    values = structuredClone(values);
 
     const coerceValue = (k: string, v: unknown): unknown => {
       if (!model) {
@@ -285,7 +295,19 @@ export class ThinQ {
       }
     }
 
-    this.logger.error('Cannot start MQTT!');
+    // Don't give up for good: without MQTT, ThinQ2 devices only refresh on the slow REST poll.
+    this.logger.error(`Cannot start MQTT! Retrying every ${MQTT_SLOW_RETRY_DELAY_MS / 60000} minutes.`);
+    const retry = () => {
+      setTimeout(() => {
+        this._registerMQTTListener(callback)
+          .then(() => this.logger.info('MQTT listener started.'))
+          .catch((err) => {
+            this.logger.debug('mqtt err:', err);
+            retry();
+          });
+      }, MQTT_SLOW_RETRY_DELAY_MS).unref?.();
+    };
+    retry();
   }
 
   protected async _registerMQTTListener(callback: (data: Record<string, unknown>) => void) {
@@ -295,12 +317,15 @@ export class ThinQ {
     // key-pair
     const keys = await this.persist.cacheForever('keys', async () => {
       this.logger.debug('Generating 2048-bit key-pair...');
-      const keys = forge.pki.rsa.generateKeyPair(2048);
+      // native keygen; forge's pure-JS RSA generation blocks the event loop for seconds.
+      // Same PEM formats forge produced: PKCS#1 private key, SPKI public key.
+      const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs1', format: 'pem' },
+      });
 
-      return {
-        privateKey: forge.pki.privateKeyToPem(keys.privateKey),
-        publicKey: forge.pki.publicKeyToPem(keys.publicKey),
-      };
+      return { privateKey, publicKey };
     });
 
     // CSR
@@ -332,42 +357,28 @@ export class ThinQ {
     };
 
     const urls = new URL(route.mqttServer);
-    // get trusted cer root based on hostname
-    let rootCAUrl;
-    if (urls.hostname.match(/^([^.]+)-ats.iot.([^.]+).amazonaws.com$/g)) {
-      // ats endpoint
-      rootCAUrl = 'https://www.amazontrust.com/repository/AmazonRootCA1.pem';
-    } else if (urls.hostname.match(/^([^.]+).iot.ruic.lgthinq.com$/g)) {
-      // LG owned certificate - Comodo CA
-      rootCAUrl = 'http://www.tbs-x509.com/Comodo_AAA_Certificate_Services.crt';
-    } else {
-      // use legacy VeriSign cert for other endpoint
-       
-      rootCAUrl = 'https://www.websecurity.digicert.com/content/dam/websitesecurity/digitalassets/desktop/pdfs/roots/VeriSign-Class%203-Public-Primary-Certification-Authority-G5.pem';
-    }
-
-    const rootCA = await this.api.getRequest(rootCAUrl);
+    // trusted root for the broker, bundled with the plugin rather than downloaded
+    const rootCA = rootCAForMqttHost(urls.hostname);
 
     const connectToMqtt = async () => {
       // submit csr
       const certificate = await submitCSR();
 
       const mqttDir = Path.join(this.platform.api.user.storagePath(), PLUGIN_NAME, 'persist', 'mqtt');
-      await FS.promises.mkdir(mqttDir, { recursive: true });
+      await FS.promises.mkdir(mqttDir, { recursive: true, mode: 0o700 });
 
       const caPath = Path.join(mqttDir, 'ca.pem');
       const keyPath = Path.join(mqttDir, 'key.pem');
       const certPath = Path.join(mqttDir, 'cert.pem');
 
+      // owner-only: key.pem is the MQTT client's private key
       const writeIfChanged = async (p: string, content: string) => {
-        try {
-          const existing = await FS.promises.readFile(p, 'utf8').catch(() => null);
-          if (existing !== content) {
-            await FS.promises.writeFile(p, content, 'utf8');
-          }
-        } catch (err) {
-          await FS.promises.writeFile(p, content, 'utf8');
+        const existing = await FS.promises.readFile(p, 'utf8').catch(() => null);
+        if (existing !== content) {
+          await FS.promises.writeFile(p, content, { encoding: 'utf8', mode: 0o600 });
         }
+        // also tighten files written by older versions with default permissions
+        await FS.promises.chmod(p, 0o600).catch(() => {});
       };
 
       await writeIfChanged(caPath, rootCA);
@@ -396,8 +407,14 @@ export class ThinQ {
         }
       });
       device.on('message', (topic, payload) => {
-        callback(JSON.parse(payload.toString()));
-        this.logger.debug('mqtt message received:', payload.toString());
+        const text = payload.toString();
+        this.logger.debug('mqtt message received:', text);
+        // a throw here would escape the MQTT client's event emitter and crash Homebridge
+        try {
+          callback(JSON.parse(text));
+        } catch (err) {
+          this.logger.error('Failed to handle MQTT message:', (err as Error)?.message || err);
+        }
       });
       device.on('offline', () => {
         device.end();
@@ -413,7 +430,7 @@ export class ThinQ {
               this.logger.error('MQTT reconnect failed, retrying in 60 seconds:', (err as Error)?.message || err);
               attempt();
             }
-          }, REQUEST_TIMEOUT_MS);
+          }, MQTT_RECONNECT_DELAY_MS);
         };
         attempt();
       });

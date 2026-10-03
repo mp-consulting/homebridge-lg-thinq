@@ -116,6 +116,9 @@ export const THIRTY_MINUTES_IN_SECONDS = 1800;
 export const REQUEST_TIMEOUT_MS = 60000;
 export const RETRY_DELAY_MS = 2000;
 export const MQTT_RETRY_DELAY_MS = 5000;
+export const MQTT_RECONNECT_DELAY_MS = 60000;
+/** After the quick MQTT start-up retries are used up, keep trying at this slower pace. */
+export const MQTT_SLOW_RETRY_DELAY_MS = 300000; // 5 minutes
 export const SHORT_POLL_INTERVAL_MS = 10000;
 export const DEVICE_DISCOVERY_DELAY_MS = 30000;
 export const TEN_MINUTES_MS = 600000;
