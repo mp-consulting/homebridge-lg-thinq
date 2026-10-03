@@ -3,7 +3,7 @@ import type { CharacteristicValue, Logger, PlatformAccessory, Service } from 'ho
 import type { Device } from '../models/Device.js';
 import type { AccessoryContext } from '../baseDevice.js';
 import { BaseDevice } from '../baseDevice.js';
-import { normalizeNumber, safeParseInt } from '../helper.js';
+import { normalizeBoolean, normalizeNumber } from '../helper.js';
 import { FILTER_CHANGE_THRESHOLD_PERCENT, AIR_PURIFIER_NORMAL_MODE, AIR_PURIFIER_AUTO_MODE } from '../lib/constants.js';
 import { BaseStatus } from '../status/BaseStatus.js';
 
@@ -12,6 +12,27 @@ export enum RotateSpeed {
   MEDIUM = 4,
   HIGH = 6,
   EXTRA = 7,
+}
+
+/** Ordered wind strengths; HomeKit RotationSpeed 1..N maps onto this list. */
+export const AIR_PURIFIER_SPEEDS: readonly RotateSpeed[] = [RotateSpeed.LOW, RotateSpeed.MEDIUM, RotateSpeed.HIGH, RotateSpeed.EXTRA];
+
+/**
+ * Map a HomeKit RotationSpeed (0..AIR_PURIFIER_SPEEDS.length, step 0.1) to an LG wind strength.
+ * Values are rounded and clamped; 0 (and anything below 1) maps to the lowest speed.
+ */
+export function rotationSpeedToWindStrength(value: number): RotateSpeed {
+  const level = Number.isFinite(value) ? Math.round(value) : 1;
+  const index = Math.max(1, Math.min(AIR_PURIFIER_SPEEDS.length, level)) - 1;
+  return AIR_PURIFIER_SPEEDS[index];
+}
+
+/**
+ * Map an LG wind strength to a HomeKit RotationSpeed level (1..N). Unknown values map to the middle level.
+ */
+export function windStrengthToRotationSpeed(windStrength: number): number {
+  const index = AIR_PURIFIER_SPEEDS.indexOf(windStrength as RotateSpeed);
+  return index !== -1 ? index + 1 : Math.ceil(AIR_PURIFIER_SPEEDS.length / 2);
 }
 
 // opMode = 14 => normal mode, can rotate speed
@@ -63,7 +84,7 @@ export default class AirPurifier extends BaseDevice {
     this.serviceAirPurifier.getCharacteristic(Characteristic.SwingMode).onSet(this.setSwingMode.bind(this));
     this.serviceAirPurifier.getCharacteristic(Characteristic.RotationSpeed)
       .onSet(this.setRotationSpeed.bind(this))
-      .setProps({ minValue: 0, maxValue: Object.keys(RotateSpeed).length / 2, minStep: 0.1 });
+      .setProps({ minValue: 0, maxValue: AIR_PURIFIER_SPEEDS.length, minStep: 0.1 });
 
     this.serviceAirQuality = this.getOrCreateService(AirQualitySensor, 'Air Quality Sensor');
 
@@ -93,64 +114,47 @@ export default class AirPurifier extends BaseDevice {
     return this.getStatus(AirPurifierStatus);
   }
 
+  protected communicationFailure() {
+    return new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+  }
+
+  /**
+   * Send a single dataKey/dataValue control. The snapshot is updated (and characteristics refreshed)
+   * only on success; failures surface to HomeKit as SERVICE_COMMUNICATION_FAILURE.
+   */
+  protected async sendControl(dataKey: string, dataValue: number): Promise<void> {
+    if (!await this.setDeviceControl(dataKey, dataValue)) {
+      this.logger.warn(`[${this.accessory.context.device.name}] Device did not accept ${dataKey}`);
+      throw this.communicationFailure();
+    }
+  }
+
   async setAirFastActive(value: CharacteristicValue) {
     if (!this.Status.isPowerOn) {
       return;
     }
-
-    const device: Device = this.accessory.context.device;
-    const isOn = value as boolean ? 1 : 0;
-    try {
-      const result = await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: 'airState.miscFuncState.airFast',
-        dataValue: isOn as number,
-      });
-      if (result) {
-        device.data.snapshot['airState.miscFuncState.airFast'] = isOn as number;
-        this.updateAccessoryCharacteristic(device);
-      }
-    } catch (error) {
-      this.logger.error('Error setting air fast mode:', error);
-    }
+    await this.sendControl('airState.miscFuncState.airFast', normalizeBoolean(value) ? 1 : 0);
   }
 
   async setActive(value: CharacteristicValue) {
-    const device: Device = this.accessory.context.device;
-    const isOn = value as boolean ? 1 : 0;
+    const isOn = normalizeBoolean(value);
     if (this.Status.isPowerOn && isOn) {
       return; // don't send same status
     }
 
     this.logger.debug('Set Active State ->', value);
-    try {
-      const result = await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: 'airState.operation',
-        dataValue: isOn as number,
-      });
-      if (result) {
-        device.data.snapshot['airState.operation'] = isOn as number;
-        this.updateAccessoryCharacteristic(device);
-      }
-    } catch (error) {
-      this.logger.error('Error setting active state:', error);
+    if (!await this.setBooleanControl('airState.operation', isOn)) {
+      throw this.communicationFailure();
     }
   }
 
   async setTargetAirPurifierState(value: CharacteristicValue) {
-    const device: Device = this.accessory.context.device;
     if (!this.Status.isPowerOn || (!!value !== this.Status.isNormalMode)) {
       return; // just skip it
     }
 
     this.logger.debug('Set Target State ->', value);
-    try {
-      await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: 'airState.opMode',
-        dataValue: value as boolean ? AIR_PURIFIER_AUTO_MODE : AIR_PURIFIER_NORMAL_MODE,
-      });
-    } catch (error) {
-      this.logger.error('Error setting target air purifier state:', error);
-    }
+    await this.sendControl('airState.opMode', value ? AIR_PURIFIER_AUTO_MODE : AIR_PURIFIER_NORMAL_MODE);
   }
 
   async setRotationSpeed(value: CharacteristicValue) {
@@ -164,42 +168,14 @@ export default class AirPurifier extends BaseDevice {
     }
 
     this.logger.debug('Set Rotation Speed ->', value);
-    const device: Device = this.accessory.context.device;
-    const values = Object.keys(RotateSpeed);
-    const windStrength = safeParseInt(values[Math.round(vNum) - 1], RotateSpeed.EXTRA);
-    try {
-      const result = await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: 'airState.windStrength',
-        dataValue: windStrength,
-      });
-      if (result) {
-        device.data.snapshot['airState.windStrength'] = windStrength;
-        this.updateAccessoryCharacteristic(device);
-      }
-    } catch (error) {
-      this.logger.error('Error setting rotation speed:', error);
-    }
+    await this.sendControl('airState.windStrength', rotationSpeedToWindStrength(vNum));
   }
 
   async setSwingMode(value: CharacteristicValue) {
     if (!this.Status.isPowerOn || !this.Status.isNormalMode) {
       return;
     }
-
-    const device: Device = this.accessory.context.device;
-    const isSwing = value as boolean ? 1 : 0;
-    try {
-      const result = await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: 'airState.circulate.rotate',
-        dataValue: isSwing,
-      });
-      if (result) {
-        device.data.snapshot['airState.circulate.rotate'] = isSwing;
-        this.updateAccessoryCharacteristic(device);
-      }
-    } catch (error) {
-      this.logger.error('Error setting swing mode:', error);
-    }
+    await this.sendControl('airState.circulate.rotate', normalizeBoolean(value) ? 1 : 0);
   }
 
   async setLight(value: CharacteristicValue) {
@@ -208,7 +184,6 @@ export default class AirPurifier extends BaseDevice {
     }
 
     const device: Device = this.accessory.context.device;
-    const isLightOn = value as boolean ? 1 : 0;
     let dataKey = '';
     if ('airState.lightingState.signal' in device.snapshot) {
       dataKey = 'airState.lightingState.signal';
@@ -220,18 +195,7 @@ export default class AirPurifier extends BaseDevice {
       return;
     }
 
-    try {
-      const result = await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey,
-        dataValue: isLightOn,
-      });
-      if (result) {
-        device.data.snapshot[dataKey] = isLightOn;
-        this.updateAccessoryCharacteristic(device);
-      }
-    } catch (error) {
-      this.logger.error('Error setting light state:', error);
-    }
+    await this.sendControl(dataKey, normalizeBoolean(value) ? 1 : 0);
   }
 
   public updateAccessoryCharacteristic(device: Device) {
@@ -252,9 +216,10 @@ export default class AirPurifier extends BaseDevice {
     this.serviceAirPurifier?.updateCharacteristic(Characteristic.RotationSpeed, this.Status.rotationSpeed);
 
     if (this.Status.filterMaxTime && this.serviceFilterMaintenance) {
-      this.serviceFilterMaintenance.updateCharacteristic(Characteristic.FilterLifeLevel, this.Status.filterUsedTimePercent);
+      const remaining = this.Status.filterRemainingPercent;
+      this.serviceFilterMaintenance.updateCharacteristic(Characteristic.FilterLifeLevel, remaining);
       this.serviceFilterMaintenance.updateCharacteristic(FilterChangeIndication,
-        this.Status.filterUsedTimePercent > FILTER_CHANGE_THRESHOLD_PERCENT ? FilterChangeIndication.CHANGE_FILTER : FilterChangeIndication.FILTER_OK);
+        AirPurifierStatus.needsFilterChange(remaining) ? FilterChangeIndication.CHANGE_FILTER : FilterChangeIndication.FILTER_OK);
     }
 
     // airState.quality.sensorMon = 1 mean sensor always running even device not running
@@ -302,20 +267,32 @@ export class AirPurifierStatus extends BaseStatus {
   }
 
   public get rotationSpeed() {
-    const windStrength = this.getInt('airState.windStrength');
-    const index = Object.keys(RotateSpeed).indexOf(windStrength.toString());
-    return index !== -1 ? index + 1 : Object.keys(RotateSpeed).length / 2;
+    return windStrengthToRotationSpeed(this.getInt('airState.windStrength'));
   }
 
   public get isNormalMode() {
     return this.getInt('airState.opMode') === AIR_PURIFIER_NORMAL_MODE;
   }
 
-  public get filterUsedTimePercent() {
-    return this.getFilterLifePercent(
+  /** Remaining filter life in percent (100 = new, 0 = worn out), clamped 0-100. */
+  public get filterRemainingPercent() {
+    return this.getFilterRemainingPercent(
       'airState.filterMngStates.useTime',
       'airState.filterMngStates.maxTime',
     );
+  }
+
+  /** @deprecated Misnamed: this is the REMAINING life. Use filterRemainingPercent. */
+  public get filterUsedTimePercent() {
+    return this.filterRemainingPercent;
+  }
+
+  /**
+   * The filter should be changed once its used life exceeds FILTER_CHANGE_THRESHOLD_PERCENT,
+   * i.e. when the remaining life drops below (100 - threshold).
+   */
+  public static needsFilterChange(remainingPercent: number): boolean {
+    return remainingPercent < 100 - FILTER_CHANGE_THRESHOLD_PERCENT;
   }
 
   public get filterMaxTime() {

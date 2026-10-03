@@ -1,4 +1,4 @@
-import type { AxiosInstance } from 'axios';
+import type { AxiosAdapter, AxiosInstance } from 'axios';
 import axios from 'axios';
 import {
   ManualProcessNeeded,
@@ -13,11 +13,70 @@ import axiosRetry from 'axios-retry';
 import { REQUEST_TIMEOUT_MS, RETRY_DELAY_MS } from '../lib/constants.js';
 
 const MAX_REQUESTS_COUNT = 1;
-const INTERVAL_MS = 10;
-let PENDING_REQUESTS = 0;
+
+/**
+ * Counting semaphore that serialises requests to LG (MAX_REQUESTS_COUNT at a time).
+ * Waiters are queued and woken in order instead of being polled on a timer.
+ */
+class RequestSlots {
+  private active = 0;
+  private readonly waiters: (() => void)[] = [];
+
+  constructor(private readonly max: number) {}
+
+  acquire(): Promise<void> {
+    if (this.active < this.max) {
+      this.active++;
+      return Promise.resolve();
+    }
+    return new Promise(resolve => this.waiters.push(resolve));
+  }
+
+  release(): void {
+    const next = this.waiters.shift();
+    if (next) {
+      // hand the slot straight to the next waiter; `active` is unchanged
+      next();
+    } else {
+      this.active = Math.max(0, this.active - 1);
+    }
+  }
+}
+
+const slots = new RequestSlots(MAX_REQUESTS_COUNT);
+const LIMITED = Symbol('slotLimited');
+type LimitedAdapter = AxiosAdapter & { [LIMITED]?: true };
+
+/**
+ * Wrap an adapter so only the network call itself holds a slot, released in `finally`.
+ * Holding it across interceptors instead would let axios-retry (which re-issues the request
+ * through this client) wait on the slot still held by the attempt it is retrying, and would
+ * leak the slot whenever an error interceptor throws.
+ */
+const limitAdapter = (adapter: AxiosAdapter): LimitedAdapter => {
+  const limited: LimitedAdapter = async (config) => {
+    await slots.acquire();
+    try {
+      return await adapter(config);
+    } finally {
+      slots.release();
+    }
+  };
+  limited[LIMITED] = true;
+  return limited;
+};
 
 const client = axios.create();
 client.defaults.timeout = REQUEST_TIMEOUT_MS;
+
+client.interceptors.request.use((config) => {
+  // retries reuse the already-limited adapter; wrapping it again would need two slots
+  if (!(config.adapter as LimitedAdapter | undefined)?.[LIMITED]) {
+    config.adapter = limitAdapter(axios.getAdapter(config.adapter ?? axios.defaults.adapter));
+  }
+  return config;
+});
+
 axiosRetry(client, {
   retries: 2, // try 3 times
   retryDelay: (retryCount) => {
@@ -33,25 +92,10 @@ axiosRetry(client, {
   shouldResetTimeout: true, // reset timeout each retries
 });
 
-client.interceptors.request.use((config) => {
-  return new Promise((resolve) => {
-    const interval = setInterval(() => {
-      if (PENDING_REQUESTS < MAX_REQUESTS_COUNT) {
-        PENDING_REQUESTS++;
-        clearInterval(interval);
-        resolve(config);
-      }
-    }, INTERVAL_MS);
-  });
-});
 client.interceptors.response.use((response) => {
-  // Release the mutex slot before any error translation: a typed throw below
-  // (e.g. TokenExpiredError) would otherwise leak the slot and deadlock the
-  // recovery request (token refresh) that reuses this same client.
-  PENDING_REQUESTS = Math.max(0, PENDING_REQUESTS - 1);
-
   // thinq1 response
-  if (typeof response.data === 'object' && 'lgedmRoot' in response.data && 'returnCd' in response.data.lgedmRoot) {
+  if (typeof response.data === 'object' && response.data !== null && 'lgedmRoot' in response.data
+    && 'returnCd' in response.data.lgedmRoot) {
     const data = response.data.lgedmRoot;
     const code = data.returnCd as string;
     if (NotConnectedErrorCodes.includes(code)) {
@@ -59,14 +103,12 @@ client.interceptors.response.use((response) => {
     } else if (code === TokenExpiredErrorCode) {
       throw new TokenExpiredError(data.returnMsg);
     } else if (code !== '0000') {
-      throw new MonitorError(code + ' - ' + data.returnMsg || '');
+      throw new MonitorError(code + ' - ' + (data.returnMsg || ''));
     }
   }
 
-  return Promise.resolve(response);
+  return response;
 }, (err) => {
-  PENDING_REQUESTS = Math.max(0, PENDING_REQUESTS - 1);
-
   if (!err.response || err.response.data?.resultCode === '9999') {
     throw new NotConnectedError();
   } else if (err.response.data?.resultCode === TokenExpiredErrorCode) {

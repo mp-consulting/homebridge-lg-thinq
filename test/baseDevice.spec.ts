@@ -163,6 +163,63 @@ describe('BaseDevice', () => {
       expect(second).not.toBe(first);
       expect(second.data).toEqual({ running: true });
     });
+
+    it('does not hand back a status built by a different Status class', () => {
+      class OtherStatus {
+        constructor(public readonly data: Record<string, unknown> | undefined) {}
+      }
+      class TwoStatusDevice extends TestDevice {
+        public callOther() {
+          return (this['getStatus' as keyof BaseDevice] as unknown as (c: typeof OtherStatus, k?: string) => OtherStatus)
+            .call(this, OtherStatus, 'state');
+        }
+      }
+      accessory.context.device = makeStubDevice({ state: { running: false } });
+      const testDevice = new TwoStatusDevice(platform, accessory, logger);
+
+      expect(testDevice.callStatus()).toBeInstanceOf(TestStatus);
+      expect(testDevice.callOther()).toBeInstanceOf(OtherStatus);
+    });
+  });
+
+  describe('updateSnapshotValue', () => {
+    class WritableDevice extends BaseDevice {
+      public write(path: string, value: unknown) {
+        (this['updateSnapshotValue' as keyof BaseDevice] as unknown as (p: string, v: unknown) => void).call(this, path, value);
+      }
+    }
+
+    function deviceWithSnapshot(snapshot: unknown): Device {
+      return { data: { snapshot } as unknown as DeviceData } as unknown as Device;
+    }
+
+    it('writes a flat dotted key when the snapshot is keyed that way (air devices)', () => {
+      accessory.context.device = deviceWithSnapshot({ 'airState.operation': 0, online: true });
+      new WritableDevice(platform, accessory, logger).write('airState.operation', 1);
+
+      expect(accessory.context.device.data.snapshot).toEqual({ 'airState.operation': 1, online: true });
+    });
+
+    it('writes a new flat key when there is no nested object to descend into', () => {
+      accessory.context.device = deviceWithSnapshot({ 'airState.operation': 1 });
+      new WritableDevice(platform, accessory, logger).write('airState.lightingState.displayControl', 0);
+
+      expect(accessory.context.device.data.snapshot).toEqual({ 'airState.operation': 1, 'airState.lightingState.displayControl': 0 });
+    });
+
+    it('writes into the nested object when the snapshot is nested (washer, oven...)', () => {
+      accessory.context.device = deviceWithSnapshot({ washerDryer: { state: 'RUNNING', doorLock: 'ON' } });
+      new WritableDevice(platform, accessory, logger).write('washerDryer.state', 'END');
+
+      expect(accessory.context.device.data.snapshot).toEqual({ washerDryer: { state: 'END', doorLock: 'ON' } });
+    });
+
+    it('creates the snapshot when it is missing', () => {
+      accessory.context.device = deviceWithSnapshot(null);
+      new WritableDevice(platform, accessory, logger).write('a.b', 2);
+
+      expect(accessory.context.device.data.snapshot).toEqual({ 'a.b': 2 });
+    });
   });
 
   // Regression for #9: subclasses that redeclared `public readonly accessory`

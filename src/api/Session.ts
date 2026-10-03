@@ -104,6 +104,24 @@ export class Session {
   }
 
   /**
+   * Converts an OAuth `expires_in` (seconds from now, number or numeric string) into the
+   * absolute epoch-seconds timestamp a Session stores, minus a small safety margin so a
+   * token is refreshed slightly before LG would reject it.
+   *
+   * @param expiresIn - Lifetime in seconds as returned by the token endpoint.
+   * @returns Expiry as epoch seconds; 0 (already expired) when the input isn't a number.
+   */
+  public static expiryFromNow(expiresIn: number | string | undefined): number {
+    const seconds = Number(expiresIn);
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+      return 0;
+    }
+    return Session.getCurrentEpoch() + Math.max(0, seconds - Session.EXPIRY_MARGIN_SECONDS);
+  }
+
+  private static readonly EXPIRY_MARGIN_SECONDS = 60;
+
+  /**
    * Gets the current epoch time in seconds.
    *
    * @returns The current epoch time in seconds.

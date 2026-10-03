@@ -4,7 +4,16 @@ import type { Device } from '../models/Device.js';
 import type { AccessoryContext } from '../baseDevice.js';
 import { BaseDevice } from '../baseDevice.js';
 import type { DeviceModel } from '../models/DeviceModel.js';
-import { cToF, fToC, normalizeNumber, safeParseInt } from '../helper.js';
+import { cToF, fToC, normalizeBoolean, normalizeNumber, safeParseInt } from '../helper.js';
+import { FILTER_CHANGE_THRESHOLD_PERCENT } from '../lib/constants.js';
+
+/** Default thermostat ranges (Celsius) when the model has no usable value mapping */
+export const REF_FRIDGE_DEFAULT_RANGE = { min: 1, max: 7 };
+export const REF_FREEZER_DEFAULT_RANGE = { min: -23, max: -15 };
+
+function clampPercent(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
 
 export default class Refrigerator extends BaseDevice {
   protected serviceFreezer: Service | undefined;
@@ -31,7 +40,6 @@ export default class Refrigerator extends BaseDevice {
       },
       Characteristic,
     } = this.platform;
-    const device: Device = accessory.context.device;
 
     const serviceLabel = accessory.getService(ServiceLabel);
     if (serviceLabel) {
@@ -53,7 +61,7 @@ export default class Refrigerator extends BaseDevice {
 
     // Express Freezer mode
     const hasExpressFreezer = this.config.ref_express_freezer
-      && device.snapshot && 'expressMode' in device.snapshot.refState;
+      && this.hasRefStateKey('expressMode');
     this.serviceExpressMode = this.ensureService(Switch, 'Express Freezer', hasExpressFreezer, 'Express Freezer');
     if (this.serviceExpressMode) {
       this.serviceExpressMode.getCharacteristic(Characteristic.On).onSet(this.setExpressMode.bind(this));
@@ -61,7 +69,7 @@ export default class Refrigerator extends BaseDevice {
 
     // Express Fridge mode
     const hasExpressFridge = this.config.ref_express_fridge
-      && device.snapshot && 'expressFridge' in device.snapshot.refState;
+      && this.hasRefStateKey('expressFridge');
     this.serviceExpressFridge = this.ensureService(Switch, 'Express Fridge', hasExpressFridge, 'Express Fridge');
     if (this.serviceExpressFridge) {
       this.serviceExpressFridge.getCharacteristic(Characteristic.On).onSet(this.setExpressFridge.bind(this));
@@ -69,7 +77,7 @@ export default class Refrigerator extends BaseDevice {
 
     // Eco Friendly mode
     const hasEcoFriendly = this.config.ref_eco_friendly
-      && device.snapshot && 'ecoFriendly' in device.snapshot.refState;
+      && this.hasRefStateKey('ecoFriendly');
     this.serviceEcoFriendly = this.ensureService(Switch, 'Eco Friendly', hasEcoFriendly, 'Eco Friendly');
     if (this.serviceEcoFriendly) {
       this.serviceEcoFriendly.getCharacteristic(Characteristic.On).onSet(this.setEcoFriendly.bind(this));
@@ -120,91 +128,86 @@ export default class Refrigerator extends BaseDevice {
         Characteristic.ContactSensorState.CONTACT_DETECTED : Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
       this.serviceDoorOpened.updateCharacteristic(Characteristic.ContactSensorState, contactSensorValue);
     }
-    if (device.snapshot) {
-      if (this.config.ref_express_freezer && 'expressMode' in device.snapshot.refState && this.serviceExpressMode) {
-        this.serviceExpressMode.updateCharacteristic(Characteristic.On, this.Status.isExpressModeOn);
-      }
+    if (this.config.ref_express_freezer && this.hasRefStateKey('expressMode') && this.serviceExpressMode) {
+      this.serviceExpressMode.updateCharacteristic(Characteristic.On, this.Status.isExpressModeOn);
+    }
 
-      if (this.config.ref_express_fridge && 'expressFridge' in device.snapshot.refState && this.serviceExpressFridge) {
-        this.serviceExpressFridge.updateCharacteristic(Characteristic.On, this.Status.isExpressFridgeOn);
-      }
+    if (this.config.ref_express_fridge && this.hasRefStateKey('expressFridge') && this.serviceExpressFridge) {
+      this.serviceExpressFridge.updateCharacteristic(Characteristic.On, this.Status.isExpressFridgeOn);
+    }
 
-      if (this.config.ref_eco_friendly && 'ecoFriendly' in device.snapshot.refState && this.serviceEcoFriendly) {
-        this.serviceEcoFriendly.updateCharacteristic(Characteristic.On, this.Status.isEcoFriendlyOn);
-      }
+    if (this.config.ref_eco_friendly && this.hasRefStateKey('ecoFriendly') && this.serviceEcoFriendly) {
+      this.serviceEcoFriendly.updateCharacteristic(Characteristic.On, this.Status.isEcoFriendlyOn);
     }
 
     if (this.Status.hasFeature('waterFilter') && this.serviceWaterFilter) {
       this.serviceWaterFilter.updateCharacteristic(FilterLifeLevel, this.Status.waterFilterRemain);
       this.serviceWaterFilter.updateCharacteristic(FilterChangeIndication,
-        this.Status.waterFilterRemain < 5 ? FilterChangeIndication.CHANGE_FILTER : FilterChangeIndication.FILTER_OK);
+        this.Status.waterFilterRemain < 100 - FILTER_CHANGE_THRESHOLD_PERCENT ? FilterChangeIndication.CHANGE_FILTER : FilterChangeIndication.FILTER_OK);
     }
+  }
+
+  /**
+   * True when the refState snapshot contains the given key (safe when refState is missing).
+   */
+  protected hasRefStateKey(key: string): boolean {
+    const refState = this.accessory.context.device.snapshot?.refState;
+    return !!refState && typeof refState === 'object' && key in refState;
+  }
+
+  protected communicationFailure() {
+    return new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+  }
+
+  /**
+   * Send a refState control (dataSetList). Throws SERVICE_COMMUNICATION_FAILURE on error or rejection.
+   */
+  protected async sendRefStateControl(values: Record<string, unknown>, label: string): Promise<void> {
+    const device: Device = this.accessory.context.device;
+    let success: boolean;
+    try {
+      success = !!await this.platform.ThinQ?.deviceControl(device.id, {
+        dataKey: null,
+        dataValue: null,
+        dataSetList: {
+          refState: {
+            ...values,
+            tempUnit: this.Status.tempUnit,
+          },
+        },
+        dataGetList: null,
+      });
+    } catch (error) {
+      this.logger.error(`[${device.name}] Failed to set ${label}:`, error);
+      throw this.communicationFailure();
+    }
+    if (!success) {
+      this.logger.warn(`[${device.name}] Device did not accept ${label}`);
+      throw this.communicationFailure();
+    }
+  }
+
+  /**
+   * Shared on/off toggle for refState modes (expressMode, expressFridge, ecoFriendly).
+   */
+  protected async setRefStateToggle(key: string, value: CharacteristicValue) {
+    const deviceModel = this.accessory.context.device.deviceModel;
+    const On = deviceModel.lookupMonitorName(key, '@CP_ON_EN_W');
+    const Off = deviceModel.lookupMonitorName(key, '@CP_OFF_EN_W');
+    await this.sendRefStateControl({ [key]: normalizeBoolean(value) ? On : Off }, key);
+    this.logger.debug(`Set ${key} ->`, value);
   }
 
   async setExpressMode(value: CharacteristicValue) {
-    const device: Device = this.accessory.context.device;
-    const On = device.deviceModel.lookupMonitorName('expressMode', '@CP_ON_EN_W');
-    const Off = device.deviceModel.lookupMonitorName('expressMode', '@CP_OFF_EN_W');
-    try {
-      await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: null,
-        dataValue: null,
-        dataSetList: {
-          refState: {
-            expressMode: value as boolean ? On : Off,
-            tempUnit: this.Status.tempUnit,
-          },
-        },
-        dataGetList: null,
-      });
-      this.logger.debug('Set Express Freezer ->', value);
-    } catch (error) {
-      this.logger.error('Failed to set express mode:', error);
-    }
+    await this.setRefStateToggle('expressMode', value);
   }
 
   async setExpressFridge(value: CharacteristicValue) {
-    const device: Device = this.accessory.context.device;
-    const On = device.deviceModel.lookupMonitorName('expressFridge', '@CP_ON_EN_W');
-    const Off = device.deviceModel.lookupMonitorName('expressFridge', '@CP_OFF_EN_W');
-    try {
-      await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: null,
-        dataValue: null,
-        dataSetList: {
-          refState: {
-            expressFridge: value as boolean ? On : Off,
-            tempUnit: this.Status.tempUnit,
-          },
-        },
-        dataGetList: null,
-      });
-      this.logger.debug('Set Express Fridge ->', value);
-    } catch (error) {
-      this.logger.error('Failed to set express fridge:', error);
-    }
+    await this.setRefStateToggle('expressFridge', value);
   }
 
   async setEcoFriendly(value: CharacteristicValue) {
-    const device: Device = this.accessory.context.device;
-    const On = device.deviceModel.lookupMonitorName('ecoFriendly', '@CP_ON_EN_W');
-    const Off = device.deviceModel.lookupMonitorName('ecoFriendly', '@CP_OFF_EN_W');
-    try {
-      await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: null,
-        dataValue: null,
-        dataSetList: {
-          refState: {
-            ecoFriendly: value as boolean ? On : Off,
-            tempUnit: this.Status.tempUnit,
-          },
-        },
-        dataGetList: null,
-      });
-      this.logger.debug('Set Eco Friendly ->', value);
-    } catch (error) {
-      this.logger.error('Failed to set eco friendly:', error);
-    }
+    await this.setRefStateToggle('ecoFriendly', value);
   }
 
   async tempUnit() {
@@ -271,8 +274,13 @@ export default class Refrigerator extends BaseDevice {
         return !isNaN(value);
       });
 
+    // Fall back to sane defaults if the model has no numeric mapping (Math.min(...[]) === Infinity)
+    const fallback = key.toLowerCase().includes('freezer') ? REF_FREEZER_DEFAULT_RANGE : REF_FRIDGE_DEFAULT_RANGE;
+    const minValue = values.length ? Math.min(...values) : fallback.min;
+    const maxValue = values.length ? Math.max(...values) : fallback.max;
+
     service.getCharacteristic(Characteristic.TargetTemperature)
-      .updateValue(Math.min(...values))
+      .updateValue(minValue)
       .onSet(async (value: CharacteristicValue) => { // value in celsius
         const vNum = normalizeNumber(value);
         if (vNum === null) {
@@ -294,28 +302,13 @@ export default class Refrigerator extends BaseDevice {
 
         await this.setTemperature(key, indexValue);
       })
-      .setProps({ minValue: Math.min(...values), maxValue: Math.max(...values), minStep: isCelsius ? 1 : 0.1 });
+      .setProps({ minValue, maxValue, minStep: isCelsius ? 1 : 0.1 });
 
     return service;
   }
 
   async setTemperature(key: string, temp: string) {
-    const device: Device = this.accessory.context.device;
-    try {
-      await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: null,
-        dataValue: null,
-        dataSetList: {
-          refState: {
-            [key]: safeParseInt(temp),
-            tempUnit: this.Status.tempUnit,
-          },
-        },
-        dataGetList: null,
-      });
-    } catch (error) {
-      this.logger.error(`[${device.name}] Error setting temperature:`, error);
-    }
+    await this.sendRefStateControl({ [key]: safeParseInt(temp) }, 'temperature');
   }
 }
 
@@ -360,21 +353,34 @@ export class RefrigeratorStatus {
     return this.data?.tempUnit || 'CELSIUS';
   }
 
-  public get waterFilterRemain() {
-    if ('waterFilter1RemainP' in this.data) {
-      return this.data?.waterFilter1RemainP || 0;
+  /**
+   * Remaining water filter life in percent (0-100).
+   * Uses `waterFilter1RemainP` when present, otherwise parses the months used from `waterFilter` (e.g. "12_..").
+   */
+  public get waterFilterRemain(): number {
+    const data = this.data;
+    if (!data || typeof data !== 'object') {
+      return 0;
     }
 
-    if ('waterFilter' in this.data) {
-      const usedInMonth = parseInt(this.data?.waterFilter.match(/(\d)_/)[1]);
+    if ('waterFilter1RemainP' in data) {
+      return clampPercent(Number(data.waterFilter1RemainP) || 0);
+    }
+
+    if (typeof data.waterFilter === 'string') {
+      const match = data.waterFilter.match(/(\d+)_/);
+      if (!match) {
+        return 0;
+      }
+      const usedInMonth = parseInt(match[1], 10);
       if (isNaN(usedInMonth)) {
         return 0;
       }
 
-      return (12 - usedInMonth) / 12 * 100;
+      return clampPercent((12 - usedInMonth) / 12 * 100);
     }
 
-    return this.data?.waterFilter1RemainP || 0;
+    return 0;
   }
 
   public hasFeature(key: string) {

@@ -9,9 +9,25 @@ import type { Logger } from 'homebridge';
 
 const makeLogger = (): Logger => (console as unknown as Logger);
 
-const input = (question: string) => new Promise<string>((resolve) => {
-  const rl = readline.createInterface(process.stdin, process.stdout);
-  rl.question(question, (answer) => resolve(answer));
+const input = (question: string, hidden = false) => new Promise<string>((resolve) => {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+  if (hidden) {
+    // echo nothing while the answer is typed (the prompt itself is written before muting)
+    const internal = rl as unknown as { _writeToOutput: (s: string) => void };
+    const write = internal._writeToOutput.bind(rl);
+    internal._writeToOutput = (s: string) => {
+      if (s.startsWith(question)) {
+        write(s);
+      }
+    };
+  }
+  rl.question(question, (answer) => {
+    rl.close();
+    if (hidden) {
+      process.stdout.write('\n');
+    }
+    resolve(answer);
+  });
 });
 
 const program = new Command();
@@ -31,10 +47,11 @@ program
   .command('login')
   .description('Obtain refresh_token from LG account')
   .argument('<username>', 'LG username')
-  .argument('<password>', 'LG password')
-  .action(async (username, password) => {
+  .argument('[password]', 'LG password (prompted without echo when omitted; passing it here leaves it in shell history)')
+  .action(async (username: string, password?: string) => {
+    password = password || await input('Password: ', true);
 
-    console.info('Start login: username =', username, ', password =', password, ', country =', options.country, ', language =', options.language);
+    console.info('Start login: username =', username, ', country =', options.country, ', language =', options.language);
     const logger = makeLogger();
     try {
       const api = new API(options.country, options.language, logger);

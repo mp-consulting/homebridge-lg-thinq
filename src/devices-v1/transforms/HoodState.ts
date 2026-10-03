@@ -5,7 +5,7 @@ export default function HoodState(deviceModel: DeviceModel, decodedMonitor: Reco
   return {
     hoodState: {
       'ventMode': deviceModel.enumName('VentMode', String(decodedMonitor.VentMode)),
-      'error': deviceModel.enumName('Error', String(decodedMonitor.VentMode)),
+      'error': deviceModel.enumName('Error', String(decodedMonitor.Error)),
       'ventLevel': safeParseInt(decodedMonitor.VentLevel),
       'lampSet': decodedMonitor.LampSet,
       'remainTimeMinute': safeParseInt(decodedMonitor.TimerMin),

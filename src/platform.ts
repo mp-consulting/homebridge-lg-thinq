@@ -28,6 +28,13 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
   public readonly events: EventEmitter;
   private readonly intervalTime: number;
 
+  // Live device handlers by device id, so a discovery retry can tear down the previous
+  // instance (timers, event listeners) instead of stacking a second one on top.
+  private readonly deviceHandlers = new Map<string, BaseDevice>();
+  private thinq2PollTimer: NodeJS.Timeout | null = null;
+  private thinq1PollTimer: NodeJS.Timeout | null = null;
+  private mqttStarted = false;
+
   // Enable ThinQ1 support
   private readonly enable_thinq1: boolean = false;
 
@@ -212,7 +219,10 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
         this.accessories.push(accessory);
       }
 
-      // Bind the update event for the device
+      // Bind the update event for the device, replacing any handler from an earlier discovery run
+      this.deviceHandlers.get(device.id)?.destroy();
+      this.events.removeAllListeners(device.id);
+      this.deviceHandlers.set(device.id, lgThinQDevice);
       this.events.on(device.id, lgThinQDevice.update.bind(lgThinQDevice));
 
       // Perform the first-time update
@@ -222,10 +232,13 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
     // Remove accessories that are no longer present in the ThinQ API
     const accessoriesToRemove = this.accessories.filter(accessory => accessoriesToRemoveUUID.includes(accessory.UUID));
     if (accessoriesToRemove.length) {
-      accessoriesToRemove.map(accessory => {
+      for (const accessory of accessoriesToRemove) {
         this.log.info('Removing accessory:', accessory.displayName);
         this.accessories.splice(this.accessories.indexOf(accessory), 1);
-      });
+        this.deviceHandlers.get(accessory.UUID)?.destroy();
+        this.deviceHandlers.delete(accessory.UUID);
+        this.events.removeAllListeners(accessory.UUID);
+      }
 
       this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, accessoriesToRemove);
     }
@@ -244,20 +257,33 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
       // interval rather than the ThinQ1 `refresh_interval`. Polling the whole
       // device list every few seconds tripped LG's rate limit (HTTP 429 / 9012),
       // which throttled the account and silently broke control commands.
-      setInterval(async () => {
-        const devices = await this.ThinQ.devices();
-        devices.filter(device => device.platform === PlatformType.ThinQ2).forEach(device => {
-          this.events.emit(device.id, device.snapshot);
-        });
+      if (this.thinq2PollTimer) {
+        clearInterval(this.thinq2PollTimer);
+      }
+      this.thinq2PollTimer = setInterval(async () => {
+        try {
+          const devices = await this.ThinQ.devices();
+          devices.filter(device => device.platform === PlatformType.ThinQ2).forEach(device => {
+            this.events.emit(device.id, device.snapshot);
+          });
+        } catch (err) {
+          this.log.debug('ThinQ2 device poll failed:', (err as Error)?.message || err);
+        }
       }, THINQ2_POLL_INTERVAL_MS);
 
-      this.log.info('Start MQTT listener for ThinQ2 devices');
-      await this.ThinQ.registerMQTTListener((data) => {
-        if ('data' in data && 'deviceId' in data) {
-          const payload = data.data as Record<string, Record<string, unknown>> | undefined;
-          this.events.emit(data.deviceId as string, payload?.state?.reported);
-        }
-      });
+      if (!this.mqttStarted) {
+        this.mqttStarted = true;
+        this.log.info('Start MQTT listener for ThinQ2 devices');
+        await this.ThinQ.registerMQTTListener((data) => {
+          if ('data' in data && 'deviceId' in data) {
+            const reported = (data.data as Record<string, Record<string, unknown>> | undefined)?.state?.reported;
+            // MQTT also carries non-state messages; an undefined snapshot would only be noise downstream
+            if (reported && typeof reported === 'object') {
+              this.events.emit(data.deviceId as string, reported);
+            }
+          }
+        });
+      }
     }
 
     // Stop here if there are no ThinQ1 devices
@@ -265,15 +291,18 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
       return;
     }
 
-    // Start polling ThinQ1 devices
-    this.log.info('Start polling device data every ' + this.config.refresh_interval + ' seconds.');
-    const ThinQ = this.ThinQ;
-    const interval = setInterval(async () => {
+    // Start polling ThinQ1 devices. Each round is scheduled only after the previous one
+    // finishes: with slow responses (60s timeout) a fixed interval would start overlapping rounds.
+    this.log.info('Start polling device data every ' + this.intervalTime / ONE_SECOND_MS + ' seconds.');
+    if (this.thinq1PollTimer) {
+      clearTimeout(this.thinq1PollTimer);
+    }
+    const poll = async () => {
       try {
         for (const accessory of this.accessories) {
           const device: Device = accessory.context.device;
           if (device.platform === PlatformType.ThinQ1 && this.enable_thinq1) {
-            const deviceWithSnapshot = await ThinQ.pollMonitor(device);
+            const deviceWithSnapshot = await this.ThinQ.pollMonitor(device);
             if (deviceWithSnapshot.snapshot.raw !== null) {
               this.events.emit(device.id, deviceWithSnapshot.snapshot);
             }
@@ -283,10 +312,12 @@ export class LGThinQHomebridgePlatform implements DynamicPlatformPlugin {
         if (err instanceof ManualProcessNeeded) {
           this.log.info('Stop polling device data.');
           this.log.warn(err.message);
-          clearInterval(interval);
           return; // Stop the plugin here
         }
+        this.log.debug('ThinQ1 poll failed:', (err as Error)?.message || err);
       }
-    }, this.intervalTime);
+      this.thinq1PollTimer = setTimeout(poll, this.intervalTime);
+    };
+    this.thinq1PollTimer = setTimeout(poll, this.intervalTime);
   }
 }

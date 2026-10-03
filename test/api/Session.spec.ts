@@ -47,4 +47,24 @@ describe('Session', () => {
     const currentEpoch = Math.round(Date.now() / 1000);
     expect(Session['getCurrentEpoch']()).toBeCloseTo(currentEpoch, -1); // Allow slight time difference
   });
+
+  describe('expiryFromNow', () => {
+    const now = () => Math.round(Date.now() / 1000);
+
+    test('turns a lifetime in seconds into an absolute epoch, minus a safety margin', () => {
+      const expiry = Session.expiryFromNow(3600);
+      expect(expiry).toBeGreaterThan(now() + 3600 - 120);
+      expect(expiry).toBeLessThanOrEqual(now() + 3600);
+      expect(new Session('a', 'r', expiry).hasValidToken()).toBe(true);
+    });
+
+    test('accepts the numeric string LG returns', () => {
+      expect(Session.expiryFromNow('3600')).toBe(Session.expiryFromNow(3600));
+    });
+
+    test.each([undefined, 'abc', 0, -5])('treats %s as already expired', (input) => {
+      expect(Session.expiryFromNow(input as number | string | undefined)).toBe(0);
+      expect(new Session('a', 'r', Session.expiryFromNow(input as number | string | undefined)).hasValidToken()).toBe(false);
+    });
+  });
 });

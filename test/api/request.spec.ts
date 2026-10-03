@@ -69,4 +69,39 @@ describe('requestClient pending-request mutex', () => {
     const res = await requestClient.get('https://example.invalid/second');
     expect(res.data).toEqual({ ok: true });
   }, 10000);
+
+  test('a retried 5xx does not deadlock the client (retry must not wait on the failed attempt\'s slot)', async () => {
+    let calls = 0;
+    requestClient.defaults.adapter = async (config) => {
+      calls++;
+      if (calls === 1) {
+        return rejectWithStatus(503)(config);
+      }
+      return okAdapter(config);
+    };
+
+    const res = await requestClient.get('https://example.invalid/flaky');
+    expect(res.data).toEqual({ ok: true });
+    expect(calls).toBe(2);
+
+    // and the client is still usable afterwards
+    requestClient.defaults.adapter = okAdapter;
+    await expect(requestClient.get('https://example.invalid/after')).resolves.toMatchObject({ data: { ok: true } });
+  }, 8000);
+
+  test('serialises concurrent requests and runs every queued one', async () => {
+    let inFlight = 0;
+    let maxInFlight = 0;
+    requestClient.defaults.adapter = async (config) => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise(r => setTimeout(r, 5));
+      inFlight--;
+      return okAdapter(config);
+    };
+
+    const results = await Promise.all(Array.from({ length: 5 }, (_, i) => requestClient.get('https://example.invalid/' + i)));
+    expect(results).toHaveLength(5);
+    expect(maxInFlight).toBe(1);
+  }, 4000);
 });

@@ -30,6 +30,13 @@ describe('Persist', () => {
     expect(initSpy).toHaveBeenCalled();
   });
 
+  test.skipIf(process.platform === 'win32')('keeps the storage directory owner-only', async () => {
+    await Fs.chmod(mockDir, 0o755);
+    await persist.init();
+    const stat = await Fs.stat(mockDir);
+    expect(stat.mode & 0o777).toBe(0o700);
+  });
+
   test('should store and retrieve an item', async () => {
     const key = 'testKey';
     const value = 'testValue';

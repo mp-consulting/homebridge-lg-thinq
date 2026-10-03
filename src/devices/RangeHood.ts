@@ -59,8 +59,7 @@ export default class RangeHood extends BaseDevice {
           minStep: ventLightSpec.step,
         });
     }
-
-    this.updateAccessoryCharacteristic(device);
+    // initial characteristic update is performed by the platform after construction
   }
 
   async setHoodActive(value: CharacteristicValue) {
@@ -68,21 +67,7 @@ export default class RangeHood extends BaseDevice {
   }
 
   async setHoodRotationSpeed(value: CharacteristicValue) {
-    const device: Device = this.accessory.context.device;
-    try {
-      await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: null,
-        dataValue: null,
-        dataSetList: {
-          hoodState: {
-            ventLevel: value,
-          },
-        },
-        dataGetList: null,
-      });
-    } catch (error) {
-      this.logger.error('Failed to set hood rotation speed:', error);
-    }
+    await this.sendHoodControl({ ventLevel: value }, 'hood rotation speed');
   }
 
   async setLightActive(value: CharacteristicValue) {
@@ -90,20 +75,31 @@ export default class RangeHood extends BaseDevice {
   }
 
   async setLightBrightness(value: CharacteristicValue) {
+    await this.sendHoodControl({ lampLevel: value }, 'light brightness');
+  }
+
+  /**
+   * Send a hoodState control; throws SERVICE_COMMUNICATION_FAILURE on error or rejection.
+   */
+  protected async sendHoodControl(values: Record<string, unknown>, label: string): Promise<void> {
     const device: Device = this.accessory.context.device;
+    let success: boolean;
     try {
-      await this.platform.ThinQ?.deviceControl(device.id, {
+      success = !!await this.platform.ThinQ?.deviceControl(device.id, {
         dataKey: null,
         dataValue: null,
         dataSetList: {
-          hoodState: {
-            lampLevel: value,
-          },
+          hoodState: values,
         },
         dataGetList: null,
       });
     } catch (error) {
-      this.logger.error('Failed to set light brightness:', error);
+      this.logger.error(`Failed to set ${label}:`, error);
+      throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    }
+    if (!success) {
+      this.logger.warn(`[${device.name}] Device did not accept ${label}`);
+      throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 

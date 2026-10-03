@@ -98,6 +98,8 @@ describe('Auth', () => {
 
     expect(session).toBeInstanceOf(Session);
     expect(session.accessToken).toBe('accessToken');
+    // expires_in (3600s lifetime) must become an absolute expiry, so the fresh token reads as valid
+    expect(session.hasValidToken()).toBe(true);
 
     // The sign-in page is opened on the country's lgemembers host, not the retired spx host.
     expect(get.mock.calls[0][0]).toContain('https://sk.lgemembers.com/lgacc/service/v1/signin?');

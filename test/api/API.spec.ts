@@ -233,4 +233,33 @@ describe('API', () => {
       expect(request).toHaveBeenCalledTimes(2);
     });
   });
+
+  test('concurrent token refreshes share one refresh call', async () => {
+    let resolveRefresh!: () => void;
+    const refreshNewToken = vi.fn(() => new Promise(resolve => {
+      resolveRefresh = () => resolve(api['session']);
+    }));
+    api['auth'] = { refreshNewToken, getJSessionId: vi.fn().mockResolvedValue('jsession') } as any;
+
+    const first = api.refreshNewToken();
+    const second = api.refreshNewToken();
+    resolveRefresh();
+    await Promise.all([first, second]);
+
+    expect(refreshNewToken).toHaveBeenCalledTimes(1);
+
+    // once settled, a later expiry triggers a new refresh
+    const third = api.refreshNewToken();
+    resolveRefresh();
+    await third;
+    expect(refreshNewToken).toHaveBeenCalledTimes(2);
+  });
+
+  test('getMonitorResult returns null instead of throwing when the ThinQ1 request failed', async () => {
+    api['_gateway'] = { thinq1_url: 'https://thinq1.example/', thinq2_url: 'https://thinq2.example/' } as any;
+    // request() resolves to {} on any handled failure
+    vi.spyOn(api as any, 'request').mockResolvedValueOnce({});
+
+    await expect(api.getMonitorResult('device1', 'work1')).resolves.toBeNull();
+  });
 });

@@ -1,9 +1,9 @@
-import { default as V2, RotateSpeed } from '../../devices/AirPurifier.js';
+import { default as V2, rotationSpeedToWindStrength } from '../../devices/AirPurifier.js';
 import type { CharacteristicValue, Logger, PlatformAccessory } from 'homebridge';
 import type { Device } from '../../models/Device.js';
 import type { LGThinQHomebridgePlatform } from '../../platform.js';
 import type { AccessoryContext } from '../../baseDevice.js';
-import { safeParseInt, normalizeNumber } from '../helper.js';
+import { normalizeNumber } from '../helper.js';
 
 export default class AirPurifier extends V2 {
   constructor(
@@ -39,8 +39,7 @@ export default class AirPurifier extends V2 {
     }
 
     const device: Device = this.accessory.context.device;
-    const values = Object.keys(RotateSpeed);
-    const windStrength = safeParseInt(values[Math.round(vNum) - 1], RotateSpeed.EXTRA);
+    const windStrength = rotationSpeedToWindStrength(vNum);
     await this.platform.ThinQ?.thinq1DeviceControl(device, 'WindStrength', windStrength.toString());
   }
 

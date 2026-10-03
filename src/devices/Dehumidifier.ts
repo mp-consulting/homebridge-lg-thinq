@@ -3,13 +3,22 @@ import { BaseDevice } from '../baseDevice.js';
 import type { LGThinQHomebridgePlatform } from '../platform.js';
 import type { CharacteristicValue, Logger, PlatformAccessory } from 'homebridge';
 import type { Device } from '../models/Device.js';
-import { normalizeNumber, safeParseInt } from '../helper.js';
+import { normalizeBoolean, normalizeNumber } from '../helper.js';
 import { FAN_SPEED_MIN, FAN_SPEED_MAX, HUMIDITY_MAX } from '../lib/constants.js';
 import { BaseStatus } from '../status/BaseStatus.js';
 
 enum RotateSpeed {
   LOW = FAN_SPEED_MIN,
   HIGH = FAN_SPEED_MAX,
+}
+
+/** Ordered wind strengths; HomeKit RotationSpeed 1..N maps onto this list. */
+export const DEHUMIDIFIER_SPEEDS: readonly number[] = [RotateSpeed.LOW, RotateSpeed.HIGH];
+
+/** Map a HomeKit RotationSpeed level to a wind strength (rounded, clamped; 0 → lowest). */
+export function dehumidifierSpeedToWindStrength(value: number): number {
+  const level = Number.isFinite(value) ? Math.round(value) : 1;
+  return DEHUMIDIFIER_SPEEDS[Math.max(1, Math.min(DEHUMIDIFIER_SPEEDS.length, level)) - 1];
 }
 
 /**
@@ -71,7 +80,7 @@ export default class Dehumidifier extends BaseDevice {
       .onSet(this.setSpeed.bind(this))
       .setProps({
         minValue: 1,
-        maxValue: Object.keys(RotateSpeed).length / 2,
+        maxValue: DEHUMIDIFIER_SPEEDS.length,
         minStep: 1,
       });
 
@@ -79,25 +88,19 @@ export default class Dehumidifier extends BaseDevice {
     this.serviceHumiditySensor.addLinkedService(this.serviceDehumidifier);
   }
 
+  protected communicationFailure() {
+    return new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+  }
+
   async setActive(value: CharacteristicValue) {
     this.logger.debug('Set Dehumidifier Active State ->', value);
-    const device: Device = this.accessory.context.device;
-    const isOn = value as boolean;
+    const isOn = normalizeBoolean(value);
     if (this.Status.isPowerOn && isOn) {
       return; // don't send same status
     }
 
-    try {
-      const result = await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: 'airState.operation',
-        dataValue: isOn,
-      });
-      if (result) {
-        device.data.snapshot['airState.operation'] = isOn ? 1 : 0;
-        this.updateAccessoryCharacteristic(device);
-      }
-    } catch (error) {
-      this.logger.error('Error setting dehumidifier active state:', error);
+    if (!await this.setBooleanControl('airState.operation', isOn)) {
+      throw this.communicationFailure();
     }
   }
 
@@ -111,18 +114,8 @@ export default class Dehumidifier extends BaseDevice {
       return;
     }
 
-    const device: Device = this.accessory.context.device;
-    try {
-      const result = await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: 'airState.humidity.desired',
-        dataValue: vNum,
-      });
-      if (result) {
-        device.data.snapshot['airState.humidity.desired'] = vNum;
-        this.updateAccessoryCharacteristic(device);
-      }
-    } catch (error) {
-      this.logger.error('Error setting dehumidifier humidity threshold:', error);
+    if (!await this.setDeviceControl('airState.humidity.desired', vNum)) {
+      throw this.communicationFailure();
     }
   }
 
@@ -136,20 +129,8 @@ export default class Dehumidifier extends BaseDevice {
       return;
     }
 
-    const device: Device = this.accessory.context.device;
-    const values = Object.keys(RotateSpeed);
-    const windStrength = safeParseInt(values[Math.round(vNum) - 1], RotateSpeed.HIGH);
-    try {
-      const result = await this.platform.ThinQ?.deviceControl(device.id, {
-        dataKey: 'airState.windStrength',
-        dataValue: windStrength,
-      });
-      if (result) {
-        device.data.snapshot['airState.windStrength'] = windStrength;
-        this.updateAccessoryCharacteristic(device);
-      }
-    } catch (error) {
-      this.logger.error('Error setting dehumidifier speed:', error);
+    if (!await this.setDeviceControl('airState.windStrength', dehumidifierSpeedToWindStrength(vNum))) {
+      throw this.communicationFailure();
     }
   }
 
@@ -210,8 +191,8 @@ export class DehumidifierStatus extends BaseStatus {
   }
 
   public get rotationSpeed() {
-    const index = Object.keys(RotateSpeed).indexOf(this.windStrength.toString());
-    return index !== -1 ? index + 1 : Object.keys(RotateSpeed).length / 2;
+    const index = DEHUMIDIFIER_SPEEDS.indexOf(this.windStrength);
+    return index !== -1 ? index + 1 : Math.ceil(DEHUMIDIFIER_SPEEDS.length / 2);
   }
 
   public get isWaterTankFull() {

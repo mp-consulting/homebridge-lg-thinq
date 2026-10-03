@@ -1,9 +1,21 @@
-import { default as AirConditioner, FanSpeed, OpMode } from '../../devices/AirConditioner.js';
+import { default as AirConditioner, FanSpeed, OpMode, FAN_SPEED_AUTO, percentToWindStrength } from '../../devices/AirConditioner.js';
 import type { CharacteristicValue } from 'homebridge';
 import { ACOperation } from '../transforms/AirState.js';
 import type { Device } from '../../models/Device.js';
 import type { RangeValue } from '../../models/DeviceModel.js';
-import { normalizeBoolean, normalizeNumber, safeParseInt } from '../helper.js';
+import { normalizeBoolean, normalizeNumber } from '../helper.js';
+import { HOMEKIT_TEMP_MIN, HOMEKIT_TEMP_MAX } from '../../lib/constants.js';
+
+/** Default ranges used when the v1 model JSON lacks TempCur / TempCfg */
+const DEFAULT_CURRENT_TEMP_RANGE = { min: -50, max: 100 };
+const DEFAULT_TARGET_TEMP_RANGE = { min: HOMEKIT_TEMP_MIN, max: HOMEKIT_TEMP_MAX };
+
+function rangeOrDefault(value: unknown, fallback: { min: number; max: number }) {
+  const range = value as Partial<RangeValue> | null | undefined;
+  const min = typeof range?.min === 'number' ? range.min : fallback.min;
+  const max = typeof range?.max === 'number' ? range.max : fallback.max;
+  return min < max ? { min, max } : fallback;
+}
 
 export default class AC extends AirConditioner {
 
@@ -15,24 +27,20 @@ export default class AC extends AirConditioner {
 
     super.createHeaterCoolerService();
 
-    const currentTemperatureValue = device.deviceModel.value('TempCur') as RangeValue;
+    const current = rangeOrDefault(device.deviceModel.value('TempCur'), DEFAULT_CURRENT_TEMP_RANGE);
     this.service.getCharacteristic(Characteristic.CurrentTemperature)
-      .setProps({
-        minValue: currentTemperatureValue.min,
-        maxValue: currentTemperatureValue.max,
-      });
+      .setProps({ minValue: current.min, maxValue: current.max });
 
-    const targetTemperatureValue = device.deviceModel.value('TempCfg') as RangeValue;
+    const target = rangeOrDefault(device.deviceModel.value('TempCfg'), DEFAULT_TARGET_TEMP_RANGE);
     this.service.getCharacteristic(Characteristic.CoolingThresholdTemperature)
-      .setProps({
-        minValue: targetTemperatureValue.min,
-        maxValue: targetTemperatureValue.max,
-      });
+      .setProps({ minValue: target.min, maxValue: target.max });
     this.service.getCharacteristic(Characteristic.HeatingThresholdTemperature)
-      .setProps({
-        minValue: targetTemperatureValue.min,
-        maxValue: targetTemperatureValue.max,
-      });
+      .setProps({ minValue: target.min, maxValue: target.max });
+  }
+
+  /** ThinQ1 devices don't support the v2 `airState.mon.timeout` keep-alive. */
+  protected startMonitor() {
+    this.stopMonitor();
   }
 
   async setFanState(value: CharacteristicValue) {
@@ -45,9 +53,8 @@ export default class AC extends AirConditioner {
 
     const vNum = normalizeNumber(value);
     const isAuto = (vNum !== null) ? (vNum === TargetFanState.AUTO) : normalizeBoolean(value);
-    const windStrength = isAuto ? 8 : FanSpeed.HIGH; // 8 mean fan auto mode
+    const windStrength = isAuto ? FAN_SPEED_AUTO : FanSpeed.HIGH;
     await this.platform.ThinQ?.thinq1DeviceControl(device, 'WindStrength', windStrength);
-    return;
   }
 
   async setJetModeActive(value: CharacteristicValue) {
@@ -67,7 +74,6 @@ export default class AC extends AirConditioner {
     const opValue = device.deviceModel.enumValue('Operation', op);
 
     await this.platform.ThinQ?.thinq1DeviceControl(device, 'Operation', opValue);
-    return;
   }
 
   async setTargetTemperature(value: CharacteristicValue) {
@@ -81,11 +87,13 @@ export default class AC extends AirConditioner {
 
     const device: Device = this.accessory.context.device;
     await this.platform.ThinQ?.thinq1DeviceControl(device, 'TempCfg', `${vNum}`);
-    device.data.snapshot['airState.tempState.target'] = vNum as number;
+    this.setSnapshotValues({ 'airState.tempState.target': vNum });
     this.updateAccessoryCharacteristic(device);
-    return;
   }
 
+  /**
+   * HomeKit sends a 0-100 percentage; map it onto the LG wind strength enum (LOW..HIGH).
+   */
   async setFanSpeed(value: CharacteristicValue) {
     if (!this.Status.isPowerOn) {
       return;
@@ -96,10 +104,8 @@ export default class AC extends AirConditioner {
       return;
     }
 
-    const speedValue = Math.max(1, Math.round(vNum));
     const device: Device = this.accessory.context.device;
-    const windStrength = safeParseInt(Object.keys(FanSpeed)[speedValue - 1], FanSpeed.HIGH);
-
+    const windStrength = percentToWindStrength(vNum);
     await this.platform.ThinQ?.thinq1DeviceControl(device, 'WindStrength', windStrength);
   }
 
@@ -108,30 +114,33 @@ export default class AC extends AirConditioner {
       return;
     }
 
-    const swingValue = !!value as boolean ? '100' : '0';
+    const swingValue = normalizeBoolean(value) ? '100' : '0';
 
     const device: Device = this.accessory.context.device;
 
     if (this.config.ac_swing_mode === 'BOTH' || this.config.ac_swing_mode === 'VERTICAL') {
       await this.platform.ThinQ?.thinq1DeviceControl(device, 'WDirVStep', swingValue);
-      device.data.snapshot['airState.wDir.vStep'] = swingValue;
+      this.setSnapshotValues({ 'airState.wDir.vStep': swingValue });
     }
 
     if (this.config.ac_swing_mode === 'BOTH' || this.config.ac_swing_mode === 'HORIZONTAL') {
       await this.platform.ThinQ?.thinq1DeviceControl(device, 'WDirHStep', swingValue);
-      device.data.snapshot['airState.wDir.hStep'] = swingValue;
+      this.setSnapshotValues({ 'airState.wDir.hStep': swingValue });
     }
 
     this.updateAccessoryCharacteristic(device);
   }
 
   async setOpMode(deviceId: string, opMode: number) {
+    void deviceId;
     const device: Device = this.accessory.context.device;
     const result = await this.platform.ThinQ?.thinq1DeviceControl(device, 'OpMode', opMode);
-    device.data.snapshot['airState.opMode'] = opMode;
-
-    this.updateAccessoryCharacteristic(device);
-    return result !== null;
+    const success = result !== null && result !== undefined;
+    if (success) {
+      this.setSnapshotValues({ 'airState.opMode': opMode });
+      this.updateAccessoryCharacteristic(device);
+    }
+    return success;
   }
 
   async setLight(value: CharacteristicValue) {

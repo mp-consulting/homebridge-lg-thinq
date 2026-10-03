@@ -6,6 +6,7 @@ import type { Device } from '../models/Device.js';
 import { PlatformType, WASHER_NOT_RUNNING_STATUS, ONE_DAY_IN_SECONDS, TEN_MINUTES_MS, TCL_MAINTENANCE_THRESHOLD } from '../lib/constants.js';
 import { toSeconds } from '../utils/normalize.js';
 import { BaseStatus } from '../status/BaseStatus.js';
+import { DeviceRegistry } from '../models/DeviceRegistry.js';
 
 /** @deprecated Use WASHER_NOT_RUNNING_STATUS from lib/constants.js instead */
 export const NOT_RUNNING_STATUS = WASHER_NOT_RUNNING_STATUS;
@@ -13,6 +14,8 @@ export const NOT_RUNNING_STATUS = WASHER_NOT_RUNNING_STATUS;
 export default class WasherDryer extends BaseDevice {
   public isRunning = false;
   public isServiceTubCleanMaintenanceTriggered = false;
+  /** Last observed (merged) washer state, used to detect transitions to END */
+  protected lastState: string | undefined;
 
   protected serviceWasherDryer: Service | undefined;
   protected serviceEventFinished: Service | undefined;
@@ -52,13 +55,13 @@ export default class WasherDryer extends BaseDevice {
       .updateValue(0);
 
     // only thinq2 support door lock status
-    const hasDoorLock = this.config.washer_door_lock && device.platform === PlatformType.ThinQ2
-      && device.snapshot && device.snapshot.washerDryer && ('doorLock' in device.snapshot.washerDryer);
+    const stateRoot = this.stateRoot;
+    const hasDoorLock = !!this.config.washer_door_lock && device.platform === PlatformType.ThinQ2
+      && !!stateRoot && ('doorLock' in stateRoot);
     this.serviceDoorLock = this.ensureService(LockMechanism, device.name + ' - Door', hasDoorLock, 'Door');
     if (this.serviceDoorLock) {
       this.serviceDoorLock.getCharacteristic(Characteristic.LockCurrentState)
         .updateValue(LockCurrentState.UNSECURED)
-        .onSet(this.setActive.bind(this))
         .setProps({
           minValue: 0,
           maxValue: 3,
@@ -91,6 +94,19 @@ export default class WasherDryer extends BaseDevice {
           validValues: [0], // single press
         });
     }
+
+    this.lastState = stateRoot ? this.Status.state || undefined : undefined;
+  }
+
+  /** Snapshot key holding the washer state ('washerDryer', or 'washer' for WASH_TOWER_2) */
+  protected get stateRootKey(): string {
+    return DeviceRegistry.getSnapshotKey(this.accessory.context.device.type) ?? 'washerDryer';
+  }
+
+  /** The (merged) washer state object from the snapshot, if present */
+  protected get stateRoot(): Record<string, unknown> | undefined {
+    const root = this.accessory.context.device.snapshot?.[this.stateRootKey];
+    return root && typeof root === 'object' ? root as Record<string, unknown> : undefined;
   }
 
   public get Status() {
@@ -129,8 +145,8 @@ export default class WasherDryer extends BaseDevice {
   public update(snapshot: Record<string, unknown>) {
     super.update(snapshot);
 
-    const washerDryer = snapshot.washerDryer as Record<string, unknown> | undefined;
-    if (!washerDryer) {
+    const delta = snapshot[this.stateRootKey] as Record<string, unknown> | undefined;
+    if (!delta || typeof delta !== 'object') {
       return;
     }
 
@@ -140,14 +156,19 @@ export default class WasherDryer extends BaseDevice {
       },
     } = this.platform;
 
-    // when washer state is changed
-    if (this.config.washer_trigger as boolean && this.serviceEventFinished
-      && ('preState' in washerDryer || 'processState' in washerDryer) && 'state' in washerDryer) {
+    // use the merged status so sparse MQTT deltas (e.g. only `state`) are handled
+    const status = this.Status;
+    const state = status.state;
+    const prevState = this.lastState;
+    if (state) {
+      this.lastState = state;
+    }
 
-      // detect if washer program in done
-      if ((['END', 'COOLDOWN'].includes(washerDryer.state as string)
-          && !NOT_RUNNING_STATUS.includes((washerDryer.preState || washerDryer.processState) as string))
-          || (this.isRunning && !this.Status.isRunning)) {
+    if (this.config.washer_trigger as boolean && this.serviceEventFinished) {
+      // detect if washer program is done: transition from a running state to END/COOLDOWN
+      const enteredEnd = ['END', 'COOLDOWN'].includes(state)
+        && prevState !== undefined && prevState !== state && !NOT_RUNNING_STATUS.includes(prevState);
+      if (enteredEnd || (this.isRunning && !status.isRunning)) {
         this.serviceEventFinished.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_DETECTED);
         this.isRunning = false; // marked device as not running
 
@@ -158,15 +179,15 @@ export default class WasherDryer extends BaseDevice {
       }
 
       // detect if washer program is start
-      if (this.Status.isRunning && !this.isRunning) {
-        this.serviceEventFinished?.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_NOT_DETECTED);
+      if (status.isRunning && !this.isRunning) {
+        this.serviceEventFinished.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_NOT_DETECTED);
         this.isRunning = true;
       }
     }
 
-    if ('TCLCount' in washerDryer && this.serviceTubCleanMaintenance) {
+    if ('TCLCount' in delta && this.serviceTubCleanMaintenance) {
       // detect if tub clean coach counter is reached
-      if (this.Status.TCLCount >= TCL_MAINTENANCE_THRESHOLD) {
+      if (status.TCLCount >= TCL_MAINTENANCE_THRESHOLD) {
         this.serviceTubCleanMaintenance.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_DETECTED);
       } else {
         // reset tub clean coach trigger flag
@@ -177,6 +198,10 @@ export default class WasherDryer extends BaseDevice {
 }
 
 export class WasherDryerStatus extends BaseStatus {
+  public get state() {
+    return this.getString('state');
+  }
+
   public get isPowerOn() {
     return !['POWEROFF', 'POWERFAIL'].includes(this.getString('state'));
   }
