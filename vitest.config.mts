@@ -13,6 +13,13 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.{test,spec}.ts'],
+      // floor just under current coverage so regressions fail CI; raise as tests are added
+      thresholds: {
+        statements: 60,
+        branches: 50,
+        functions: 58,
+        lines: 60,
+      },
     },
   },
   oxc: {
