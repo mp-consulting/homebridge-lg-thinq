@@ -9,6 +9,7 @@ import {
   SIX_HOURS_IN_SECONDS,
   TEN_MINUTES_MS,
   ONE_HOUR_IN_SECONDS,
+  ONE_SECOND_MS,
   SIX_MINUTES_MS,
   DISHWASHER_STANDBY_INTERVAL_MS,
   DRY_CYCLE_THRESHOLD,
@@ -16,25 +17,88 @@ import {
   RINSE_LEVEL_EMPTY,
   RINSE_LEVEL_HALF,
   RINSE_LEVEL_FULL,
-  MAX_NAME_LENGTH,
-  TRUNCATED_NAME_LENGTH,
-  ISO_TIME_START_INDEX,
-  ISO_TIME_LENGTH,
   INPUT_ID_MIN,
   INPUT_ID_MAX,
 } from '../lib/constants.js';
+import {
+  capitalize,
+  enteredState,
+  formatDateTime,
+  formatDuration,
+  sumTimeFields,
+  textIncludes,
+  truncateName,
+} from './cooking/helpers.js';
+import { createInputSource, createTelevision, setVisibility, updateIfChanged } from './cooking/services.js';
+
+/** Television input identifiers. */
+const INPUT_STATUS = 1;
+const INPUT_OPTIONS = 2;
+const INPUT_START_TIME = 3;
+const INPUT_DURATION = 4;
+const INPUT_END_TIME = 5;
+const INPUT_RINSE = 6;
+const INPUT_CLEANLINESS = 7;
+
+const DEFAULT_START_STRING = 'Cycle Start Time Not Set';
+const DEFAULT_DURATION_STRING = 'Cycle Duration Not Set';
+const DEFAULT_END_STRING = 'Cycle End Time Not Set';
+
+/** Display names for known courses (matched by substring, in order). */
+const COURSE_NAMES: readonly [string, string][] = [
+  ['AUTO', 'Running a Auto Cycle'],
+  ['HEAVY', 'Running a Heavy Cycle'],
+  ['DELICATE', 'Running a Delicate Cycle'],
+  ['TURBO', 'Running a Turbo Cycle'],
+  ['NORMAL', 'Running a Normal Cycle'],
+  ['RINSE', 'Running a Rinse Cycle'],
+  ['REFRESH', 'Running a Refresh Cycle'],
+  ['EXPRESS', 'Running a Express Cycle'],
+  ['CLEAN', 'Cleaning the Dishwasher'],
+  ['SHORT', 'Running a Short Cycle'],
+];
+
+const LATE_COURSE_NAMES: readonly [string, string][] = [
+  ['QUICK', 'Running a Quick Cycle'],
+  ['STREAM', 'Running a Stream Cycle'],
+  ['SPRAY', 'Running a Spray Cycle'],
+  ['ECO', 'Running an Eco Cycle'],
+];
+
+/** Display names for simple states (matched by substring, in order). */
+const STATE_NAMES: readonly [string, string][] = [
+  ['FAIL', 'Failure Detected'],
+  ['RESERVED', 'Is Reserved'],
+  ['RINSING', 'Rinsing'],
+  ['DRYING', 'Drying'],
+  ['NIGHT', 'Night Drying'],
+  ['CANCEL', 'Cancelled Cleaning'],
+  ['ERROR', 'Cleaning Error'],
+];
+
+const OPTION_NAMES: readonly [string, string][] = [
+  ['energySaver', 'Energy Saver'],
+  ['halfLoad', 'Half Load'],
+  ['dualZone', 'Dual Zone'],
+  ['highTemp', 'High Temp'],
+  ['steam', 'Steam'],
+  ['extraRinse', 'Extra Rinse'],
+  ['extraDry', 'Extra Dry'],
+  ['nightDry', 'Night Dry'],
+  ['delayStart', 'Delay Start'],
+];
 
 export default class Dishwasher extends BaseDevice {
   public isRunning = false;
-  public inputID = 1;
+  public inputID = INPUT_STATUS;
   public rinseLevel = 'LEVEL_2';
   public inputName = 'Dishwasher Status';
   public inputNameOptions = 'Dishwasher Options';
   public inputNameRinse = 'Dishwasher Rinse Aid Level';
   public inputNameMachine = 'Dishwasher Cleanness Status';
-  public courseStartString = 'Cycle Start Time Not Set';
-  public courseTimeString = 'Cycle Duration Not Set';
-  public courseTimeEndString = 'Cycle End Time Not Set';
+  public courseStartString = DEFAULT_START_STRING;
+  public courseTimeString = DEFAULT_DURATION_STRING;
+  public courseTimeEndString = DEFAULT_END_STRING;
   public showTime = false;
   public firstTime = true;
   public firstEnd = true;
@@ -45,6 +109,10 @@ export default class Dishwasher extends BaseDevice {
   public firstStandby = true;
   public standbyTimetMS = 0;
   public finishedTime = 'Today';
+  /** Last `state` seen in a dishwasher snapshot (for END edge detection). */
+  protected lastReportedState: unknown = undefined;
+  protected standbyTimer: ReturnType<typeof setTimeout> | undefined;
+  protected finishedTimer: ReturnType<typeof setTimeout> | undefined;
 
   protected serviceDishwasher: Service;
   protected serviceDoorOpened: Service;
@@ -57,21 +125,6 @@ export default class Dishwasher extends BaseDevice {
   protected endTime: Service;
   protected dishwasherRinseLevel: Service;
   protected dishwasherCleanliness: Service;
-
-  createInputSourceService(name: string, subtype: string, identifier: number, configuredName: string, isShow: boolean) {
-    return this.accessory.getService(name) ||
-      this.accessory.addService(this.platform.Service.InputSource, name, subtype)
-        .setCharacteristic(this.platform.Characteristic.Identifier, identifier)
-        .setCharacteristic(this.platform.Characteristic.ConfiguredName, configuredName)
-        .setCharacteristic(this.platform.Characteristic.IsConfigured, this.platform.Characteristic.IsConfigured.CONFIGURED)
-        .setCharacteristic(this.platform.Characteristic.InputSourceType, this.platform.Characteristic.InputSourceType.APPLICATION)
-        .setCharacteristic(this.platform.Characteristic.TargetVisibilityState,
-          isShow ? this.platform.Characteristic.TargetVisibilityState.SHOWN : this.platform.Characteristic.TargetVisibilityState.HIDDEN,
-        )
-        .setCharacteristic(this.platform.Characteristic.CurrentVisibilityState,
-          isShow ? this.platform.Characteristic.CurrentVisibilityState.SHOWN : this.platform.Characteristic.CurrentVisibilityState.HIDDEN,
-        );
-  }
 
   constructor(
     platform: LGThinQHomebridgePlatform,
@@ -91,127 +144,68 @@ export default class Dishwasher extends BaseDevice {
 
     const device = accessory.context.device;
 
-    this.tvService = this.accessory.getService(this.config.name) ||
-      this.accessory.addService(this.platform.Service.Television, this.config.name, 'CataNicoGaTa-70');
-    this.tvService.setCharacteristic(this.platform.Characteristic.ConfiguredName, 'LG Dishwasher');
-    this.tvService.setPrimaryService(false);
-    this.tvService.setCharacteristic(this.platform
-      .Characteristic.SleepDiscoveryMode, this.platform.Characteristic.SleepDiscoveryMode.ALWAYS_DISCOVERABLE);
-    this.tvService.getCharacteristic(this.platform.Characteristic.Active)
+    this.tvService = createTelevision(platform, accessory, this.config.name || device.name, 'CataNicoGaTa-70', 'LG Dishwasher');
+    this.tvService.getCharacteristic(Characteristic.Active)
       .onSet(this.setActive.bind(this))
-      .updateValue(this.platform.Characteristic.Active.INACTIVE)
-      .onGet(() => {
-        return this.onStatus() ? 1 : 0;
-      });
-    this.tvService
-      .setCharacteristic(this.platform.Characteristic.ActiveIdentifier, this.inputID);
-    this.tvService
-      .getCharacteristic(this.platform.Characteristic.ActiveIdentifier)
+      .updateValue(Characteristic.Active.INACTIVE)
+      .onGet(() => (this.onStatus() ? 1 : 0));
+    this.tvService.setCharacteristic(Characteristic.ActiveIdentifier, this.inputID);
+    this.tvService.getCharacteristic(Characteristic.ActiveIdentifier)
       .onSet((inputIdentifier) => {
         const vNum = normalizeNumber(inputIdentifier);
         if (vNum === null) {
           this.logger.error('Dishwasher ActiveIdentifier is not a number');
           return;
         }
-        if (vNum > INPUT_ID_MAX || vNum < INPUT_ID_MIN) {
-          this.inputID = INPUT_ID_MIN;
-        } else {
-          this.inputID = vNum;
-        }
+        this.inputID = vNum > INPUT_ID_MAX || vNum < INPUT_ID_MIN ? INPUT_ID_MIN : vNum;
       })
-      .onGet(() => {
-        return this.inputID;
-      });
+      .onGet(() => this.inputID);
 
-    this.dishwasherState = this.createInputSourceService('Dishwasher Status', 'CataNicoGaTa-10030', 1, this.inputName, true);
-    this.dishwasherState.getCharacteristic(this.platform.Characteristic.ConfiguredName)
-      .onGet(() => {
-        this.currentInputName();
-        return this.inputName;
-      });
-    this.tvService.addLinkedService(this.dishwasherState);
-
-    this.dishwasherOptions = this.createInputSourceService('Dishwasher Options', 'CataNicoGaTa-10040', 2, this.inputNameOptions, this.onStatus());
-    this.dishwasherOptions.getCharacteristic(this.platform.Characteristic.ConfiguredName)
-      .onGet(() => {
-        this.currentInputName();
-        return this.inputNameOptions;
-      });
-    this.tvService.addLinkedService(this.dishwasherOptions);
-
-    this.startTime = this.createInputSourceService('Cycle Start Time', 'CataNico-Always10', 3, this.courseStartString, this.showTime);
-    this.startTime.getCharacteristic(this.platform.Characteristic.ConfiguredName)
-      .onGet(() => {
-        return this.courseStartString;
-      });
-    this.tvService.addLinkedService(this.startTime);
-
-    this.courseDuration = this.createInputSourceService('Cycle Duration', 'CataNico-Always20', 4, this.courseTimeString, this.showTime);
-    this.courseDuration.getCharacteristic(this.platform.Characteristic.ConfiguredName)
-      .onGet(() => {
-        return this.courseTimeString;
-      });
-    this.tvService.addLinkedService(this.courseDuration);
-
-    this.endTime = this.createInputSourceService('Cycle End Time', 'CataNico-Always30', 5, this.courseTimeEndString, this.showTime);
-    this.endTime.getCharacteristic(this.platform.Characteristic.ConfiguredName)
-      .onGet(() => {
-        return this.courseTimeEndString;
-      });
-    this.tvService.addLinkedService(this.endTime);
-
-    this.dishwasherRinseLevel = this.createInputSourceService('Dishwasher Rinse Aid Level', 'CataNicoGaTa-10050', 6, this.inputNameRinse, this.onStatus());
-    this.dishwasherRinseLevel.getCharacteristic(this.platform.Characteristic.ConfiguredName)
-      .onGet(() => {
-        this.updateRinseLevel();
-        return this.inputNameRinse;
-      });
-    this.tvService.addLinkedService(this.dishwasherRinseLevel);
-
-    this.dishwasherCleanliness = this.createInputSourceService('Dishwasher Cleanness Status', 'CataNicoGaTa-10060', 7, this.inputNameMachine, this.onStatus());
-    this.dishwasherCleanliness.getCharacteristic(this.platform.Characteristic.ConfiguredName)
-      .onGet(() => {
-        this.updateRinseLevel();
-        return this.inputNameMachine;
-      });
-    this.tvService.addLinkedService(this.dishwasherCleanliness);
+    // ConfiguredName getters are pure: the cached strings are refreshed by updateAccessoryCharacteristic.
+    const input = (name: string, subtype: string, identifier: number, shown: boolean, getName: () => string) =>
+      createInputSource(platform, accessory, this.tvService, { name, subtype, identifier, shown, getName });
+    const on = this.onStatus();
+    this.dishwasherState = input('Dishwasher Status', 'CataNicoGaTa-10030', INPUT_STATUS, true, () => this.inputName);
+    this.dishwasherOptions = input('Dishwasher Options', 'CataNicoGaTa-10040', INPUT_OPTIONS, on, () => this.inputNameOptions);
+    this.startTime = input('Cycle Start Time', 'CataNico-Always10', INPUT_START_TIME, this.showTime, () => this.courseStartString);
+    this.courseDuration = input('Cycle Duration', 'CataNico-Always20', INPUT_DURATION, this.showTime, () => this.courseTimeString);
+    this.endTime = input('Cycle End Time', 'CataNico-Always30', INPUT_END_TIME, this.showTime, () => this.courseTimeEndString);
+    this.dishwasherRinseLevel = input('Dishwasher Rinse Aid Level', 'CataNicoGaTa-10050', INPUT_RINSE, on, () => this.inputNameRinse);
+    this.dishwasherCleanliness = input('Dishwasher Cleanness Status', 'CataNicoGaTa-10060', INPUT_CLEANLINESS, on,
+      () => this.inputNameMachine);
 
     this.serviceDishwasher = accessory.getService(Valve) || accessory.addService(Valve, 'LG Dishwasher');
     this.serviceDishwasher.setPrimaryService(true);
     this.serviceDishwasher.setCharacteristic(Characteristic.Name, device.name);
-    this.serviceDishwasher.addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
-    this.serviceDishwasher.setCharacteristic(this.platform.Characteristic.ConfiguredName, device.name);
+    this.serviceDishwasher.addOptionalCharacteristic(Characteristic.ConfiguredName);
+    this.serviceDishwasher.setCharacteristic(Characteristic.ConfiguredName, device.name);
     this.serviceDishwasher.setCharacteristic(Characteristic.ValveType, Characteristic.ValveType.IRRIGATION);
     this.serviceDishwasher.getCharacteristic(Characteristic.Active)
       .onSet(this.setActive.bind(this))
       .updateValue(Characteristic.Active.INACTIVE)
-      .onGet(() => {
-        return this.timerStatus();
-      });
+      .onGet(() => this.timerStatus());
     this.serviceDishwasher.setCharacteristic(Characteristic.InUse, Characteristic.InUse.NOT_IN_USE);
-    this.serviceDishwasher.getCharacteristic(this.platform.Characteristic.StatusFault)
-      .onGet(this.getRinseLevel.bind(this));
+    this.serviceDishwasher.getCharacteristic(Characteristic.StatusFault)
+      .onGet(() => this.getRinseLevel());
     this.serviceDishwasher.getCharacteristic(Characteristic.RemainingDuration).setProps({
       maxValue: SIX_HOURS_IN_SECONDS,
     });
-    this.serviceDishwasher.getCharacteristic(this.platform.Characteristic.SetDuration)
-      .onGet(() => {
-        return this.settingDuration;
-      })
+    this.serviceDishwasher.getCharacteristic(Characteristic.SetDuration)
+      .onGet(() => this.settingDuration)
       .setProps({
         maxValue: SIX_HOURS_IN_SECONDS,
       });
 
     // Door open state
     this.serviceDoorOpened = accessory.getService(ContactSensor) || accessory.addService(ContactSensor, 'Dishwasher Door');
-    this.serviceDoorOpened.addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
-    this.serviceDoorOpened.setCharacteristic(this.platform.Characteristic.ConfiguredName, 'Dishwasher Door');
-    this.serviceDoorOpened.getCharacteristic(this.platform.Characteristic.StatusActive)
-      .onGet(this.getDoorStatus.bind(this));
-    this.serviceDoorOpened.getCharacteristic(this.platform.Characteristic.BatteryLevel)
-      .onGet(this.getRinseLevelPercent.bind(this));
-    this.serviceDoorOpened.getCharacteristic(this.platform.Characteristic.StatusLowBattery)
-      .onGet(this.getRinseLevelStatus.bind(this));
+    this.serviceDoorOpened.addOptionalCharacteristic(Characteristic.ConfiguredName);
+    this.serviceDoorOpened.setCharacteristic(Characteristic.ConfiguredName, 'Dishwasher Door');
+    this.serviceDoorOpened.getCharacteristic(Characteristic.StatusActive)
+      .onGet(() => this.getDoorStatus());
+    this.serviceDoorOpened.getCharacteristic(Characteristic.BatteryLevel)
+      .onGet(() => this.getRinseLevelPercent());
+    this.serviceDoorOpened.getCharacteristic(Characteristic.StatusLowBattery)
+      .onGet(() => this.getRinseLevelStatus());
 
     this.serviceEventFinished = accessory.getService(OccupancySensor);
     if (this.config.dishwasher_trigger as boolean) {
@@ -223,22 +217,56 @@ export default class Dishwasher extends BaseDevice {
     }
   }
 
+  public destroy(): void {
+    if (this.standbyTimer) {
+      clearTimeout(this.standbyTimer);
+      this.standbyTimer = undefined;
+    }
+    if (this.finishedTimer) {
+      clearTimeout(this.finishedTimer);
+      this.finishedTimer = undefined;
+    }
+    super.destroy();
+  }
+
+  /** Name for the running course (e.g. "Running a Heavy Cycle"). */
+  protected runningCourseName(): string {
+    const data = this.Status.data;
+    const course = data.course;
+    const match = COURSE_NAMES.find(([key]) => textIncludes(course, key));
+    if (match) {
+      return match[1];
+    }
+    if (textIncludes(course, 'DOWNLOAD')) {
+      return 'Running a ' + capitalize(data.currentDownloadCourse) + ' Cycle';
+    }
+    const lateMatch = LATE_COURSE_NAMES.find(([key]) => textIncludes(course, key));
+    if (lateMatch) {
+      return lateMatch[1];
+    }
+    return 'Running a ' + capitalize(course) + ' Cycle';
+  }
+
+  /** Recompute the status/options input names. Called from the update path only. */
   currentInputName() {
-    if (!this.Status.data.process.includes('RESERVED')) {
+    const data = this.Status.data;
+    const state = data.state;
+    const process = data.process;
+    if (!textIncludes(process, 'RESERVED')) {
       this.firstDelay = true;
     }
-    if (!this.Status.data.state.includes('STAND')) {
+    if (!textIncludes(state, 'STAND')) {
       this.standbyTimetMS = 0;
       this.firstStandby = true;
     }
     if (this.firstDelay) {
-      if (this.Status.data.state.includes('OFF')) {
+      if (textIncludes(state, 'OFF')) {
         this.inputName = 'Power Off';
         this.firstEnd = true;
         this.resetTimeSettings();
         this.settingDuration = 0;
         this.dryCounter = 0;
-      } else if (this.Status.data.state.includes('STAND')) {
+      } else if (textIncludes(state, 'STAND')) {
         this.firstEnd = true;
         this.resetTimeSettings();
         this.dryCounter = 0;
@@ -246,364 +274,168 @@ export default class Dishwasher extends BaseDevice {
           this.inputName = 'Power Off';
         } else {
           this.inputName = 'In Standby';
-          if (!this.Status.data.door.includes('OPEN')) {
+          if (!textIncludes(data.door, 'OPEN')) {
             this.inputName += ' (Door Closed)';
           }
         }
         if (this.firstStandby) {
-          const standbyTime = new Date();
-          this.standbyTimetMS = standbyTime.getTime();
+          this.standbyTimetMS = Date.now();
           this.firstStandby = false;
-          setTimeout(() => {
-            this.serviceDishwasher.updateCharacteristic(this.platform.Characteristic.Active, this.timerStatus());
-            this.tvService.updateCharacteristic(this.platform.Characteristic.Active, this.onStatus() ? 1 : 0);
-            this.serviceDoorOpened.updateCharacteristic(this.platform.Characteristic.StatusActive, this.onStatus());
-          }, DISHWASHER_STANDBY_INTERVAL_MS);
+          this.scheduleStandbyRefresh();
         }
-
-      } else if (this.Status.data.state.includes('INITIAL')) {
+      } else if (textIncludes(state, 'INITIAL')) {
         this.inputName = 'Initializing';
         this.resetTimeSettings();
-      } else if (this.Status.data.state.includes('RUNNING')) {
-        if (this.Status.data.course.includes('AUTO')) {
-          this.inputName = 'Running a Auto Cycle';
-        } else if (this.Status.data.course.includes('HEAVY')) {
-          this.inputName = 'Running a Heavy Cycle';
-        } else if (this.Status.data.course.includes('DELICATE')) {
-          this.inputName = 'Running a Delicate Cycle';
-        } else if (this.Status.data.course.includes('TURBO')) {
-          this.inputName = 'Running a Turbo Cycle';
-        } else if (this.Status.data.course.includes('NORMAL')) {
-          this.inputName = 'Running a Normal Cycle';
-        } else if (this.Status.data.course.includes('RINSE')) {
-          this.inputName = 'Running a Rinse Cycle';
-        } else if (this.Status.data.course.includes('REFRESH')) {
-          this.inputName = 'Running a Refresh Cycle';
-        } else if (this.Status.data.course.includes('EXPRESS')) {
-          this.inputName = 'Running a Express Cycle';
-        } else if (this.Status.data.course.includes('CLEAN')) {
-          this.inputName = 'Cleaning the Dishwasher';
-        } else if (this.Status.data.course.includes('SHORT')) {
-          this.inputName = 'Running a Short Cycle';
-        } else if (this.Status.data.course.includes('DOWNLOAD')) {
-          let downloadCourse = this.Status.data.currentDownloadCourse;
-          downloadCourse = downloadCourse.toLocaleLowerCase();
-          const downloadCourseCap =
-            downloadCourse.charAt(0).toUpperCase()
-            + downloadCourse.slice(1);
-          this.inputName = 'Running a ' + downloadCourseCap + ' Cycle';
-        } else if (this.Status.data.course.includes('QUICK')) {
-          this.inputName = 'Running a Quick Cycle';
-        } else if (this.Status.data.course.includes('STREAM')) {
-          this.inputName = 'Ruuning a Stream Cycle';
-        } else if (this.Status.data.course.includes('SPRAY')) {
-          this.inputName = 'Running a Spray Cycle';
-        } else if (this.Status.data.course.includes('ECO')) {
-          this.inputName = 'Running an Eco Cycle';
-        } else {
-          let lowerCase = this.Status.data.course;
-          lowerCase = lowerCase.toLocaleLowerCase();
-          const upperCase =
-            lowerCase.charAt(0).toUpperCase()
-            + lowerCase.slice(1);
-          this.inputName = 'Running a ' + upperCase + ' Cycle';
-        }
-
-      } else if (this.Status.data.state.includes('PAUSE')) {
+      } else if (textIncludes(state, 'RUNNING')) {
+        this.inputName = this.runningCourseName();
+      } else if (textIncludes(state, 'PAUSE')) {
         this.inputName = 'Paused Cleaning';
         this.firstTime = true;
         this.firstDelay = true;
-      } else if (this.Status.data.state.includes('END')) {
+      } else if (textIncludes(state, 'END')) {
         if (this.firstEnd) {
-          const courseFinished = new Date();
-          this.finishedTime = courseFinished.toLocaleString('en-US', {
-            weekday: 'short',
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour12: false,
-            hour: 'numeric',
-            minute: 'numeric',
-            second: 'numeric',
-            timeZoneName: 'short',
-          });
+          this.finishedTime = formatDateTime(new Date(), 'short');
           this.firstEnd = false;
           this.resetTimeSettings();
-
         }
         this.inputName = 'Finished Cycle ' + this.finishedTime;
-        if (this.Status.data.extraDry.includes('ON') && this.dryCounter > DRY_CYCLE_THRESHOLD && this.Status.remainDuration === ONE_HOUR_IN_SECONDS) {
+        if (textIncludes(data.extraDry, 'ON') && this.dryCounter > DRY_CYCLE_THRESHOLD && this.Status.remainDuration === ONE_HOUR_IN_SECONDS) {
           this.inputName += ' (Waiting For Extra Dry Step)';
         }
-      } else if (this.Status.data.state.includes('FAIL')) {
-        this.inputName = 'Failure Detected';
-      } else if (this.Status.data.state.includes('RESERVED')) {
-        this.inputName = 'Is Reserved';
-      } else if (this.Status.data.state.includes('RINSING')) {
-        this.inputName = 'Rinsing';
-      } else if (this.Status.data.state.includes('DRYING')) {
-        this.inputName = 'Drying';
-      } else if (this.Status.data.state.includes('NIGHT')) {
-        this.inputName = 'Night Drying';
-      } else if (this.Status.data.state.includes('CANCEL')) {
-        this.inputName = 'Cancelled Cleaning';
-      } else if (this.Status.data.state.includes('ERROR')) {
-        this.inputName = 'Cleaning Error';
       } else {
-        let lowerCase = this.Status.data.state;
-        lowerCase = lowerCase.toLocaleLowerCase();
-        const upperCase =
-          lowerCase.charAt(0).toUpperCase()
-          + lowerCase.slice(1);
-        this.inputName = 'Dishwasher ' + upperCase;
+        const match = STATE_NAMES.find(([key]) => textIncludes(state, key));
+        this.inputName = match ? match[1] : 'Dishwasher ' + capitalize(state);
       }
-      if (this.Status.data.door.includes('OPEN')) {
+      if (textIncludes(data.door, 'OPEN')) {
         this.inputName += ' (Door Open)';
         this.resetTimeSettings();
       }
-      if (this.Status.data.state === this.Status.data.process && this.Status.data.process.includes('RUNNING')) {
+      if (state === process && textIncludes(process, 'RUNNING')) {
         this.inputName += '. Step: Cleaning';
       }
-      if (this.Status.data.state !== this.Status.data.process && !this.Status.data.process.includes('NONE') && !this.Status.data.state.includes('END')) {
-        if (this.Status.data.process.includes('RINSING')) {
-          this.inputName += '. Step: Rinsing';
-        } else if (this.Status.data.process.includes('DRYING')) {
-          this.inputName += '. Step: Drying';
-          if (this.Status.data.extraDry.includes('ON') && this.dryCounter > DRY_CYCLE_THRESHOLD) {
-            this.inputName += ' (Extra)';
-          }
-        } else if (this.Status.data.process.includes('NIGHT')) {
-          this.inputName += '. Step: Night Drying';
-        } else if (this.Status.data.process.includes('END')) {
-          this.inputName += '. Step: Ending';
-        } else if (this.Status.data.process.includes('CANCEL')) {
-          this.inputName += '. Step: Cancelling';
-        } else if (this.Status.data.process.includes('RESERVED') && this.Status.data.delayStart === 'ON') {
-          const courseTime = new Date(0);
-          this.delayTime = this.Status.data.reserveTimeHour * 60 * 60 + this.Status.data.reserveTimeMinute * 60;
-          courseTime.setSeconds(this.delayTime);
-          let delayTimeString = courseTime.toISOString().substr(ISO_TIME_START_INDEX, ISO_TIME_LENGTH);
-
-          if (delayTimeString.startsWith('0')) {
-            delayTimeString = delayTimeString.substring(1);
-          }
-          let hourMinutes = 'Minutes';
-          if (this.delayTime > ONE_HOUR_IN_SECONDS) {
-            hourMinutes = 'Hours';
-          }
-          if (this.delayTime === ONE_HOUR_IN_SECONDS) {
-            hourMinutes = 'Hour';
-
-          }
-          this.inputName += '. Step: Waiting ' + delayTimeString + ' ' + hourMinutes + ' to Start';
-          this.timeDurationEnd();
-          this.firstDelay = false;
-        } else {
-          if (!this.Status.data.state.includes('INITIAL') && !this.Status.data.state.includes('STAND') && !this.Status.data.process.includes('RESERVED')) {
-            let lowerCase = this.Status.data.state;
-            lowerCase = lowerCase.toLocaleLowerCase();
-            const upperCase =
-              lowerCase.charAt(0).toUpperCase()
-              + lowerCase.slice(1);
-            this.inputName += '. Step: ' + upperCase;
-          }
-        }
+      if (state !== process && typeof process === 'string' && !process.includes('NONE') && !textIncludes(state, 'END')) {
+        this.inputName += this.processStepName();
       }
     }
-    this.inputNameOptions = 'Options:';
-    if (this.Status.data.energySaver?.includes('ON')) {
-      this.inputNameOptions += ' Energy Saver,';
-    }
-    if (this.Status.data.halfLoad?.includes('ON')) {
-      this.inputNameOptions += ' Half Load,';
-    }
-    if (this.Status.data.dualZone?.includes('ON')) {
-      this.inputNameOptions += ' Dual Zone,';
-    }
-    if (this.Status.data.highTemp?.includes('ON')) {
-      this.inputNameOptions += ' High Temp,';
-    }
-    if (this.Status.data.steam?.includes('ON')) {
-      this.inputNameOptions += ' Steam,';
-    }
-    if (this.Status.data.extraRinse?.includes('ON')) {
-      this.inputNameOptions += ' Extra Rinse,';
-    }
-    if (this.Status.data.extraDry?.includes('ON')) {
-      this.inputNameOptions += ' Extra Dry,';
-    }
-    if (this.Status.data.nightDry?.includes('ON')) {
-      this.inputNameOptions += ' Night Dry,';
-    }
-    if (this.Status.data.delayStart?.includes('ON')) {
-      this.inputNameOptions += ' Delay Start,';
-    }
-    if (!this.Status.data.energySaver?.includes('ON') &&
-      !this.Status.data.halfLoad?.includes('ON') &&
-      !this.Status.data.dualZone?.includes('ON') &&
-      !this.Status.data.highTemp?.includes('ON') &&
-      !this.Status.data.steam?.includes('ON') &&
-      !this.Status.data.extraRinse?.includes('ON') &&
-      !this.Status.data.extraDry?.includes('ON') &&
-      !this.Status.data.nightDry?.includes('ON') &&
-      !this.Status.data.delayStart?.includes('ON')) {
-      this.inputNameOptions += ' None,';
-    }
-    this.inputNameOptions = this.inputNameOptions.substring(0, this.inputNameOptions.length - 1);
-    ///Names length Check
-    this.inputName = this.nameLengthCheck(this.inputName);
-    this.inputNameOptions = this.nameLengthCheck(this.inputNameOptions);
-    //////
-    if (this.dishwasherState.getCharacteristic(this.platform.Characteristic.ConfiguredName).value !== this.inputName) {
-      this.dishwasherState.updateCharacteristic(this.platform.Characteristic.ConfiguredName, this.inputName);
-    }
+
+    const options = OPTION_NAMES.filter(([key]) => textIncludes(data[key], 'ON')).map(([, label]) => label);
+    this.inputNameOptions = 'Options: ' + (options.length > 0 ? options.join(', ') : 'None');
+    this.inputName = truncateName(this.inputName);
+    this.inputNameOptions = truncateName(this.inputNameOptions);
     if (!this.Status.isPowerOn) {
       this.inputNameOptions = 'Dishwasher Options';
     }
-    if (this.dishwasherOptions.getCharacteristic(this.platform.Characteristic.ConfiguredName).value !== this.inputNameOptions) {
-      this.dishwasherOptions.updateCharacteristic(this.platform.Characteristic.ConfiguredName, this.inputNameOptions);
+    updateIfChanged(this.dishwasherState, this.platform.Characteristic.ConfiguredName, this.inputName);
+    updateIfChanged(this.dishwasherOptions, this.platform.Characteristic.ConfiguredName, this.inputNameOptions);
+    setVisibility(this.platform, this.dishwasherOptions, this.onStatus());
+  }
+
+  /** Suffix describing the current wash step, e.g. ". Step: Drying". */
+  protected processStepName(): string {
+    const data = this.Status.data;
+    const process = data.process;
+    if (textIncludes(process, 'RINSING')) {
+      return '. Step: Rinsing';
     }
-    this.dishwasherOptions.updateCharacteristic(
-      this.platform.Characteristic.TargetVisibilityState,
-      this.onStatus() ? this.platform.Characteristic.TargetVisibilityState.SHOWN : this.platform.Characteristic.TargetVisibilityState.HIDDEN);
-    this.dishwasherOptions.updateCharacteristic(
-      this.platform.Characteristic.CurrentVisibilityState,
-      this.onStatus() ? this.platform.Characteristic.CurrentVisibilityState.SHOWN : this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
+    if (textIncludes(process, 'DRYING')) {
+      const extra = textIncludes(data.extraDry, 'ON') && this.dryCounter > DRY_CYCLE_THRESHOLD ? ' (Extra)' : '';
+      return '. Step: Drying' + extra;
+    }
+    if (textIncludes(process, 'NIGHT')) {
+      return '. Step: Night Drying';
+    }
+    if (textIncludes(process, 'END')) {
+      return '. Step: Ending';
+    }
+    if (textIncludes(process, 'CANCEL')) {
+      return '. Step: Cancelling';
+    }
+    if (textIncludes(process, 'RESERVED') && data.delayStart === 'ON') {
+      this.delayTime = sumTimeFields(data.reserveTimeHour, data.reserveTimeMinute);
+      this.timeDurationEnd();
+      this.firstDelay = false;
+      return '. Step: Waiting ' + formatDuration(this.delayTime) + ' to Start';
+    }
+    const state = data.state;
+    if (!textIncludes(state, 'INITIAL') && !textIncludes(state, 'STAND') && !textIncludes(process, 'RESERVED')) {
+      return '. Step: ' + capitalize(state);
+    }
+    return '';
+  }
+
+  /** Re-evaluate Active state once the standby window has elapsed (single tracked timer). */
+  protected scheduleStandbyRefresh(): void {
+    if (this.standbyTimer) {
+      clearTimeout(this.standbyTimer);
+    }
+    this.standbyTimer = setTimeout(() => {
+      this.standbyTimer = undefined;
+      const { Characteristic } = this.platform;
+      this.serviceDishwasher.updateCharacteristic(Characteristic.Active, this.timerStatus());
+      this.tvService.updateCharacteristic(Characteristic.Active, this.onStatus() ? 1 : 0);
+      this.serviceDoorOpened.updateCharacteristic(Characteristic.StatusActive, this.onStatus());
+    }, DISHWASHER_STANDBY_INTERVAL_MS);
   }
 
   timeDurationEnd() {
-    /////Cycle duration
+    const remaining = this.Status.remainDuration;
     this.showTime = true;
-    const courseTime = new Date(0);
-    courseTime.setSeconds(this.Status.remainDuration);
-    let courseTimeString = courseTime.toISOString().substr(ISO_TIME_START_INDEX, ISO_TIME_LENGTH);
-
-    if (courseTimeString.startsWith('0')) {
-      courseTimeString = courseTimeString.substring(1);
-    }
-    let hourMinutes = 'Minutes';
-    if (this.Status.remainDuration > ONE_HOUR_IN_SECONDS) {
-      hourMinutes = 'Hours';
-    }
-    if (this.Status.remainDuration === ONE_HOUR_IN_SECONDS) {
-      hourMinutes = 'Hour';
-
-    }
-    this.courseTimeString = 'Duration: ' + courseTimeString + ' ' + hourMinutes;
-    if (this.Status.data.extraDry.includes('ON')) {
+    this.courseTimeString = 'Duration: ' + formatDuration(remaining);
+    if (textIncludes(this.Status.data.extraDry, 'ON')) {
       this.courseTimeString += ' + 1:00:00 Hour For Extra Dry';
     }
-    ////Starting time
-    const courseCurrentTime = new Date();
-    const courseStartMS = courseCurrentTime.getTime();
-    const courseStart = new Date(courseStartMS + this.delayTime * 1000);
-    const newDate = courseStart.toLocaleString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour12: false,
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      timeZoneName: 'short',
-    });
-    this.courseStartString = 'Start: ' + newDate;
-
-    const dateEnd = new Date(this.Status.remainDuration * 1000 + courseStartMS + this.delayTime * 1000);
-    const newEndDate = dateEnd.toLocaleString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour12: false,
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      timeZoneName: 'short',
-    });
-    this.courseTimeEndString = 'End: ' + newEndDate;
-    ///Names length Check
-    this.courseStartString = this.nameLengthCheck(this.courseStartString);
-    this.courseTimeString = this.nameLengthCheck(this.courseTimeString);
-    this.courseTimeEndString = this.nameLengthCheck(this.courseTimeEndString);
-    //////
-    if (this.startTime.getCharacteristic(this.platform.Characteristic.ConfiguredName).value !== this.courseStartString) {
-      this.startTime.updateCharacteristic(this.platform.Characteristic.ConfiguredName, this.courseStartString);
-    }
-    if (this.courseDuration.getCharacteristic(this.platform.Characteristic.ConfiguredName).value !== this.courseTimeString) {
-      this.courseDuration.updateCharacteristic(this.platform.Characteristic.ConfiguredName, this.courseTimeString);
-    }
-    if (this.endTime.getCharacteristic(this.platform.Characteristic.ConfiguredName).value !== this.courseTimeEndString) {
-      this.endTime.updateCharacteristic(this.platform.Characteristic.ConfiguredName, this.courseTimeEndString);
-    }
-    this.startTime.updateCharacteristic(
-      this.platform.Characteristic.TargetVisibilityState,
-      this.showTime ? this.platform.Characteristic.TargetVisibilityState.SHOWN : this.platform.Characteristic.TargetVisibilityState.HIDDEN);
-    this.startTime.updateCharacteristic(
-      this.platform.Characteristic.CurrentVisibilityState,
-      this.showTime ? this.platform.Characteristic.CurrentVisibilityState.SHOWN : this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
-    this.courseDuration.updateCharacteristic(
-      this.platform.Characteristic.TargetVisibilityState,
-      this.showTime ? this.platform.Characteristic.TargetVisibilityState.SHOWN : this.platform.Characteristic.TargetVisibilityState.HIDDEN);
-    this.courseDuration.updateCharacteristic(
-      this.platform.Characteristic.CurrentVisibilityState,
-      this.showTime ? this.platform.Characteristic.CurrentVisibilityState.SHOWN : this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
-    this.endTime.updateCharacteristic(
-      this.platform.Characteristic.TargetVisibilityState,
-      this.showTime ? this.platform.Characteristic.TargetVisibilityState.SHOWN : this.platform.Characteristic.TargetVisibilityState.HIDDEN);
-    this.endTime.updateCharacteristic(
-      this.platform.Characteristic.CurrentVisibilityState,
-      this.showTime ? this.platform.Characteristic.CurrentVisibilityState.SHOWN : this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
+    const startMS = Date.now() + this.delayTime * ONE_SECOND_MS;
+    this.courseStartString = truncateName('Start: ' + formatDateTime(new Date(startMS)));
+    this.courseTimeString = truncateName(this.courseTimeString);
+    this.courseTimeEndString = truncateName('End: ' + formatDateTime(new Date(startMS + remaining * ONE_SECOND_MS)));
+    this.pushTimeInputs();
   }
 
+  /** Push the start/duration/end inputs (names and visibility) to HomeKit when changed. */
+  protected pushTimeInputs(): void {
+    const { ConfiguredName } = this.platform.Characteristic;
+    updateIfChanged(this.startTime, ConfiguredName, this.courseStartString);
+    updateIfChanged(this.courseDuration, ConfiguredName, this.courseTimeString);
+    updateIfChanged(this.endTime, ConfiguredName, this.courseTimeEndString);
+    setVisibility(this.platform, this.startTime, this.showTime);
+    setVisibility(this.platform, this.courseDuration, this.showTime);
+    setVisibility(this.platform, this.endTime, this.showTime);
+  }
+
+  /** Active cannot be controlled remotely; the handler only logs. */
   setActive() {
     this.logger.debug('Dishwasher Response', this.Status.data);
-
-    // this.platform.log('Dishwasher rinse', this.Status.data.rinseLevel);
-    //  this.platform.log('Dishwasher rinse typeof', typeof this.Status.data.rinseLevel);
-    //this.updateRinseLevel();
-    //  this.platform.log('Dishwasher rinse status', this.rinseStatus);
-    // this.serviceDishwasher.updateCharacteristic(this.platform.Characteristic.StatusFault, this.rinseStatus);
-    // this.platform.log('Dishwasher Response', this.Status);
-    // throw new this.platform.api.hap.HapStatusError(-70412 /* this.platform.api.hap.HAPStatus.NOT_ALLOWED_IN_CURRENT_STATE */);
   }
 
   public updateAccessoryCharacteristic(device: Device) {
     super.updateAccessoryCharacteristic(device);
     const { Characteristic } = this.platform;
-    if (this.Status.remainDuration !== this.serviceDishwasher.getCharacteristic(Characteristic.RemainingDuration).value) {
-      if (this.Status.data.extraDry.includes('ON') && this.Status.remainDuration === ONE_HOUR_IN_SECONDS) {
+    const data = this.Status.data;
+    const remaining = this.Status.remainDuration;
+    if (remaining !== this.serviceDishwasher.getCharacteristic(Characteristic.RemainingDuration).value) {
+      if (textIncludes(data.extraDry, 'ON') && remaining === ONE_HOUR_IN_SECONDS) {
         this.dryCounter += 1;
       }
       if (this.dryCounter <= DRY_CYCLE_THRESHOLD) {
-        this.serviceDishwasher.updateCharacteristic(Characteristic.RemainingDuration, this.Status.remainDuration);
+        this.serviceDishwasher.updateCharacteristic(Characteristic.RemainingDuration, remaining);
       }
     }
     if (this.Status.isPowerOn) {
-      this.settingDuration = this.Status.data.initialTimeHour * 60 * 60 + this.Status.data.initialTimeMinute * 60;
+      this.settingDuration = sumTimeFields(data.initialTimeHour, data.initialTimeMinute);
     }
-    if (this.settingDuration !== this.serviceDishwasher.getCharacteristic(Characteristic.SetDuration).value) {
-      this.serviceDishwasher.updateCharacteristic(this.platform.Characteristic.SetDuration, this.settingDuration);
-    }
+    updateIfChanged(this.serviceDishwasher, Characteristic.SetDuration, this.settingDuration);
     this.serviceDishwasher.updateCharacteristic(Characteristic.Active, this.timerStatus());
-    this.tvService.updateCharacteristic(this.platform.Characteristic.Active, this.onStatus() ? 1 : 0);
-    if (this.Status.data.delayStart === 'ON' && this.Status.data.process.includes('RESER')) {
-      this.serviceDishwasher.updateCharacteristic(Characteristic.InUse, 0);
-
-    } else if (this.Status.data.state.includes('STAND')) {
-      this.serviceDishwasher.updateCharacteristic(Characteristic.InUse, 0);
+    this.tvService.updateCharacteristic(Characteristic.Active, this.onStatus() ? 1 : 0);
+    if ((data.delayStart === 'ON' && textIncludes(data.process, 'RESER')) || textIncludes(data.state, 'STAND')) {
+      this.serviceDishwasher.updateCharacteristic(Characteristic.InUse, Characteristic.InUse.NOT_IN_USE);
     } else {
       this.serviceDishwasher.updateCharacteristic(Characteristic.InUse, this.Status.isRunning ? 1 : 0);
-
     }
-    if (this.serviceDoorOpened) {
-      const contactSensorValue = this.Status.isDoorClosed ?
-        Characteristic.ContactSensorState.CONTACT_DETECTED : Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
-      this.serviceDoorOpened.updateCharacteristic(Characteristic.ContactSensorState, contactSensorValue);
-    }
+    const contactSensorValue = this.Status.isDoorClosed ?
+      Characteristic.ContactSensorState.CONTACT_DETECTED : Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
+    this.serviceDoorOpened.updateCharacteristic(Characteristic.ContactSensorState, contactSensorValue);
     this.currentInputName();
-    if (this.Status.data.state.includes('RUNNING') && !this.Status.data.process.includes('RESERVED') && this.firstTime) {
+    if (textIncludes(data.state, 'RUNNING') && !textIncludes(data.process, 'RESERVED') && this.firstTime) {
       this.delayTime = 0;
       this.timeDurationEnd();
       this.firstTime = false;
@@ -615,104 +447,74 @@ export default class Dishwasher extends BaseDevice {
     return this.getStatus(DishwasherStatus);
   }
 
-  nameLengthCheck(newName: string) {
-    if (newName.length >= MAX_NAME_LENGTH) {
-      newName = newName.slice(0, TRUNCATED_NAME_LENGTH) + '...';
+  /** Rinse level from the snapshot while running, otherwise the last known level. */
+  protected effectiveRinseLevel(): string {
+    const data = this.Status.data;
+    if (textIncludes(data.state, 'RUNNING')) {
+      return typeof data.rinseLevel === 'string' && data.rinseLevel ? data.rinseLevel : 'LEVEL_1';
     }
-    return newName;
+    return this.rinseLevel;
   }
 
   updateRinseLevel() {
-    if (this.Status.data.state.includes('RUNNING')) {
-      this.rinseLevel = this.Status.data.rinseLevel || 'LEVEL_1';
-    }
+    const { Characteristic } = this.platform;
+    this.rinseLevel = this.effectiveRinseLevel();
+    let inputID = this.inputID;
     let rinseLevelPercent = RINSE_LEVEL_FULL;
     let rinseLevelStatus = 0;
     if (this.rinseLevel === 'LEVEL_0') {
       rinseLevelPercent = RINSE_LEVEL_EMPTY;
       rinseLevelStatus = 1;
       this.inputNameRinse = 'Rinse Aid Level is Running Low';
-      this.inputID = 3;
+      inputID = INPUT_RINSE;
     } else if (this.rinseLevel === 'LEVEL_1') {
       rinseLevelPercent = RINSE_LEVEL_HALF;
       this.inputNameRinse = 'Rinse Aid Level is at 50% Capacity';
     } else if (this.rinseLevel === 'LEVEL_2') {
-      rinseLevelPercent = RINSE_LEVEL_FULL;
       this.inputNameRinse = 'Rinse Aid Level is at 100% Capacity';
     } else {
       this.inputNameRinse = 'Rinse Aid Level is Normal';
     }
-    this.serviceDishwasher.updateCharacteristic(this.platform.Characteristic.StatusFault, rinseLevelStatus);
-    this.serviceDoorOpened.updateCharacteristic(this.platform.Characteristic.StatusActive, this.onStatus());
-    this.serviceDoorOpened.updateCharacteristic(this.platform.Characteristic.BatteryLevel, rinseLevelPercent);
-    this.serviceDoorOpened.updateCharacteristic(this.platform.Characteristic.StatusLowBattery, rinseLevelStatus);
+    const on = this.onStatus();
+    this.serviceDishwasher.updateCharacteristic(Characteristic.StatusFault, rinseLevelStatus);
+    this.serviceDoorOpened.updateCharacteristic(Characteristic.StatusActive, on);
+    this.serviceDoorOpened.updateCharacteristic(Characteristic.BatteryLevel, rinseLevelPercent);
+    this.serviceDoorOpened.updateCharacteristic(Characteristic.StatusLowBattery, rinseLevelStatus);
 
-    if (this.Status.data.tclCount > TCL_MAINTENANCE_THRESHOLD) {
-      this.inputID = 7;
+    const needsCleaning = this.Status.data.tclCount > TCL_MAINTENANCE_THRESHOLD;
+    if (needsCleaning) {
+      inputID = INPUT_CLEANLINESS;
       this.inputNameMachine = 'Machine Cleaning Cycle is Needed Soon';
-      if (this.dishwasherCleanliness.getCharacteristic(this.platform.Characteristic.ConfiguredName).value !== this.inputNameMachine) {
-        this.dishwasherCleanliness.updateCharacteristic(this.platform.Characteristic.ConfiguredName, this.inputNameMachine);
-      }
-      this.dishwasherCleanliness.updateCharacteristic(
-        this.platform.Characteristic.TargetVisibilityState,
-        this.onStatus() ? this.platform.Characteristic.TargetVisibilityState.SHOWN : this.platform.Characteristic.TargetVisibilityState.HIDDEN);
-      this.dishwasherCleanliness.updateCharacteristic(
-        this.platform.Characteristic.CurrentVisibilityState,
-        this.onStatus() ? this.platform.Characteristic.CurrentVisibilityState.SHOWN : this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
-
     } else {
       this.inputNameMachine = 'Dishwasher is Clean';
-      if (this.dishwasherCleanliness.getCharacteristic(this.platform.Characteristic.ConfiguredName).value !== this.inputNameMachine) {
-        this.dishwasherCleanliness.updateCharacteristic(this.platform.Characteristic.ConfiguredName, this.inputNameMachine);
-      }
-      this.dishwasherCleanliness.updateCharacteristic(
-        this.platform.Characteristic.TargetVisibilityState, this.platform.Characteristic.TargetVisibilityState.HIDDEN);
-      this.dishwasherCleanliness.updateCharacteristic(
-        this.platform.Characteristic.CurrentVisibilityState, this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
     }
-    if (this.dishwasherRinseLevel.getCharacteristic(this.platform.Characteristic.ConfiguredName).value !== this.inputNameRinse) {
-      this.dishwasherRinseLevel.updateCharacteristic(this.platform.Characteristic.ConfiguredName, this.inputNameRinse);
+    updateIfChanged(this.dishwasherCleanliness, Characteristic.ConfiguredName, this.inputNameMachine);
+    setVisibility(this.platform, this.dishwasherCleanliness, needsCleaning && on);
+    updateIfChanged(this.dishwasherRinseLevel, Characteristic.ConfiguredName, this.inputNameRinse);
+    setVisibility(this.platform, this.dishwasherRinseLevel, on);
+
+    if (inputID !== this.inputID) {
+      this.inputID = inputID;
+      this.tvService.updateCharacteristic(Characteristic.ActiveIdentifier, inputID);
     }
-    this.dishwasherRinseLevel.updateCharacteristic(
-      this.platform.Characteristic.TargetVisibilityState,
-      this.onStatus() ? this.platform.Characteristic.TargetVisibilityState.SHOWN : this.platform.Characteristic.TargetVisibilityState.HIDDEN);
-    this.dishwasherRinseLevel.updateCharacteristic(
-      this.platform.Characteristic.CurrentVisibilityState,
-      this.onStatus() ? this.platform.Characteristic.CurrentVisibilityState.SHOWN : this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
   }
 
   onStatus() {
-    const newCurrentTime = new Date();
-    const newCurrentTimeMS = newCurrentTime.getTime();
-    if (this.standbyTimetMS !== 0) {
-      if (newCurrentTimeMS - this.standbyTimetMS > SIX_MINUTES_MS) {
-        return false;
-      } else {
-        return this.Status.isPowerOn;
-      }
-    } else {
-      return this.Status.isPowerOn;
+    if (this.standbyTimetMS !== 0 && Date.now() - this.standbyTimetMS > SIX_MINUTES_MS) {
+      return false;
     }
+    return this.Status.isPowerOn;
   }
 
   timerStatus() {
-    if (!this.onStatus || this.Status.remainDuration === 0 || this.Status.data.state.includes('STAND')) {
+    if (!this.onStatus() || this.Status.remainDuration === 0 || textIncludes(this.Status.data.state, 'STAND')) {
       return 0;
-    } else {
-      return 1;
     }
+    return 1;
   }
 
   getRinseLevel() {
-    if (this.Status.data.state.includes('RUNNING')) {
-      this.rinseLevel = this.Status.data.rinseLevel || 'LEVEL_1';
-    }
-    let rinseStatus = 0;
-    if (this.rinseLevel === 'LEVEL_0') {
-      rinseStatus = 1;
-    }
-
-    return rinseStatus;
+    return this.effectiveRinseLevel() === 'LEVEL_0' ? 1 : 0;
   }
 
   getDoorStatus() {
@@ -720,90 +522,66 @@ export default class Dishwasher extends BaseDevice {
   }
 
   getRinseLevelPercent() {
-    let levelPercent = this.rinseLevel;
-    if (this.Status.data.state.includes('RUNNING')) {
-      levelPercent = this.Status.data.rinseLevel || 'LEVEL_1';
+    const level = this.effectiveRinseLevel();
+    if (level === 'LEVEL_0') {
+      return RINSE_LEVEL_EMPTY;
     }
-    let rinseLevelPercent = RINSE_LEVEL_FULL;
-    if (levelPercent === 'LEVEL_0') {
-      rinseLevelPercent = RINSE_LEVEL_EMPTY;
-    } else if (levelPercent === 'LEVEL_1') {
-      rinseLevelPercent = RINSE_LEVEL_HALF;
+    if (level === 'LEVEL_1') {
+      return RINSE_LEVEL_HALF;
     }
-    return rinseLevelPercent;
+    return RINSE_LEVEL_FULL;
   }
 
   getRinseLevelStatus() {
-    let levelStatus = this.rinseLevel;
-    if (this.Status.data.state.includes('RUNNING')) {
-      levelStatus = this.Status.data.rinseLevel || 'LEVEL_1';
-    }
-    let rinseLevelStatus = 0;
-    if (levelStatus === 'LEVEL_0') {
-      rinseLevelStatus = 1;
-    }
-    return rinseLevelStatus;
+    return this.getRinseLevel();
   }
 
   resetTimeSettings() {
     this.showTime = false;
     this.firstTime = true;
     this.firstDelay = true;
-    this.courseStartString = 'Cycle Start Time Not Set';
-    this.courseTimeString = 'Cycle Duration Not Set';
-    this.courseTimeEndString = 'Cycle End Time Not Set';
-    this.startTime.updateCharacteristic(
-      this.platform.Characteristic.TargetVisibilityState, 
-      this.showTime ? this.platform.Characteristic.TargetVisibilityState.SHOWN : this.platform.Characteristic.TargetVisibilityState.HIDDEN);
-    this.startTime.updateCharacteristic(
-      this.platform.Characteristic.CurrentVisibilityState,
-      this.showTime ? this.platform.Characteristic.CurrentVisibilityState.SHOWN : this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
-    this.courseDuration.updateCharacteristic(
-      this.platform.Characteristic.TargetVisibilityState,
-      this.showTime ? this.platform.Characteristic.TargetVisibilityState.SHOWN : this.platform.Characteristic.TargetVisibilityState.HIDDEN);
-    this.courseDuration.updateCharacteristic(
-      this.platform.Characteristic.CurrentVisibilityState,
-      this.showTime ? this.platform.Characteristic.CurrentVisibilityState.SHOWN : this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
-    this.endTime.updateCharacteristic(
-      this.platform.Characteristic.TargetVisibilityState,
-      this.showTime ? this.platform.Characteristic.TargetVisibilityState.SHOWN : this.platform.Characteristic.TargetVisibilityState.HIDDEN);
-    this.endTime.updateCharacteristic(
-      this.platform.Characteristic.CurrentVisibilityState,
-      this.showTime ? this.platform.Characteristic.CurrentVisibilityState.SHOWN : this.platform.Characteristic.CurrentVisibilityState.HIDDEN);
+    this.courseStartString = DEFAULT_START_STRING;
+    this.courseTimeString = DEFAULT_DURATION_STRING;
+    this.courseTimeEndString = DEFAULT_END_STRING;
+    setVisibility(this.platform, this.startTime, false);
+    setVisibility(this.platform, this.courseDuration, false);
+    setVisibility(this.platform, this.endTime, false);
   }
 
   public update(snapshot: Record<string, unknown>) {
     super.update(snapshot);
 
     const dishwasher = snapshot.dishwasher as Record<string, unknown> | undefined;
-    if (!dishwasher) {
+    if (!dishwasher || !('state' in dishwasher)) {
       return;
     }
+    const previousState = this.lastReportedState;
+    this.lastReportedState = dishwasher.state;
 
-    // when washer state is changed
-    if (this.config.dishwasher_trigger as boolean && this.serviceEventFinished && 'state' in dishwasher) {
-      const {
-        Characteristic: {
-          OccupancyDetected,
-        },
-      } = this.platform;
+    if (!(this.config.dishwasher_trigger as boolean) || !this.serviceEventFinished) {
+      return;
+    }
+    const { OccupancyDetected } = this.platform.Characteristic;
 
-      // detect if washer program in done
-      if ((['END'].includes(dishwasher.state as string)) || (this.isRunning && !this.Status.isRunning)) {
-        this.serviceEventFinished.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_DETECTED);
-        this.isRunning = false; // marked device as not running
+    // detect if the program is done: only on the transition into END, or running -> not running
+    if (enteredState(previousState, dishwasher.state, 'END') || (this.isRunning && !this.Status.isRunning)) {
+      this.serviceEventFinished.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_DETECTED);
+      this.isRunning = false; // marked device as not running
 
-        // turn it off after 10 minute
-        setTimeout(() => {
-          this.serviceEventFinished?.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_NOT_DETECTED);
-        }, TEN_MINUTES_MS);
+      // turn it off after 10 minutes (single tracked timer)
+      if (this.finishedTimer) {
+        clearTimeout(this.finishedTimer);
       }
+      this.finishedTimer = setTimeout(() => {
+        this.finishedTimer = undefined;
+        this.serviceEventFinished?.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_NOT_DETECTED);
+      }, TEN_MINUTES_MS);
+    }
 
-      // detect if dishwasher program is start
-      if (this.Status.isRunning && !this.isRunning) {
-        this.serviceEventFinished.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_NOT_DETECTED);
-        this.isRunning = true;
-      }
+    // detect if dishwasher program is start
+    if (this.Status.isRunning && !this.isRunning) {
+      this.serviceEventFinished.updateCharacteristic(OccupancyDetected, OccupancyDetected.OCCUPANCY_NOT_DETECTED);
+      this.isRunning = true;
     }
   }
 }
