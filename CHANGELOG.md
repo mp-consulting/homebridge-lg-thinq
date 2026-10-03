@@ -1,5 +1,51 @@
 # Change Log
 
+## [1.0.40] - 2026-10-03
+
+### Fixed
+
+- **The plugin could stop talking to LG until Homebridge was restarted**: requests to LG go out one at a time, and when one failed with a server error (HTTP 5xx) or a dropped connection, the automatic retry waited for the slot still held by the failed attempt. That request, and every one after it, hung for good. Devices stopped updating and commands did nothing. A failed request now frees its slot before the retry starts.
+- **Air purifiers, AeroTower, dehumidifiers: power always showed as off**: their status was read from a part of the snapshot those devices don't send, so the plugin believed the device was off and ignored controls that need it on (rotation speed, swing, light, air fast mode, humidity).
+- **Air purifier asked for a new filter when the filter was new**: the filter check read remaining life as if it were used life. A worn filter now raises the warning and a new one doesn't.
+- **Air purifier: setting the speed slider to 0 selected the highest speed.** It now selects the lowest.
+- **AC temperatures in Fahrenheit**: when the model has no conversion table for a value, the fallback treated a Celsius reading as Fahrenheit and could show a sub-zero temperature. Both directions now use one converter, and HomeKit shows the same whole °F as the unit.
+- **AC custom buttons and optional services**: removing buttons left half of them behind, and turning off `ac_air_quality` or `ac_fan_control` never removed those services. ThinQ1 ACs no longer send almost every fan speed as HIGH.
+- **Ovens**:
+  - The cook timer showed the oven temperature.
+  - Every Celsius sous-vide temperature was sent as 38 °C.
+  - The back-left burner could show "NaN".
+  - Ovens without a cooktop reported a burner in use.
+  - Burner times were shifted by your time zone.
+  - The thermostat stopped at 218 °C, below normal baking temperatures.
+  - The temperature you picked was overwritten by the next update while the oven was idle.
+- **Microwaves**: turning the microwave off only stopped it when it was already idle. It now stops cooking. Power-level brightness is now reported on a consistent scale.
+- **Dishwashers**: "Program Finished" fired again on every update while the cycle sat at its end, each time starting a new timer. It now fires once. The low-rinse-aid input is also correct.
+- **Renaming an oven, microwave or dishwasher could stop Homebridge from starting**: the TV service was looked up by its display name, so a rename created a duplicate. Services are now matched by their fixed identifier. All existing identifiers are kept, so rooms, names and automations carry over.
+- **Commands that failed looked successful in the Home app**: failures (including commands the device rejects) are now reported to HomeKit, and the plugin only updates its local state after a command succeeds.
+- **Refrigerators**: no crash when the fridge state is missing. The water filter now reads two-digit months.
+- **WashTower (new model)**: now gets its door lock service, and "Program Finished" no longer depends on the state and previous state arriving in the same update.
+- **Plugin settings: device list failed if the old ThinQ v1 login failed**, which is a normal case the plugin is meant to skip past.
+- **Login tokens were treated as already expired**, which caused an unnecessary refresh at every start. When several requests find an expired token at once, the plugin now refreshes it only once.
+- **A malformed MQTT message, or a failed ThinQ1 status request, could crash Homebridge.** MQTT now keeps retrying every 5 minutes instead of giving up after 5 attempts.
+
+### Security
+
+- **MQTT root certificates are now included with the plugin** instead of being downloaded at every start and trusted as-is (one over plain HTTP, open to tampering on the network). The VeriSign download had already broken: the URL now returns a status page instead of a certificate.
+- **The MQTT private key and the plugin's stored data are now readable only by the Homebridge user** (`0600` files, `0700` directory). Files written by older versions are tightened on the next start.
+- **The `thinq login` CLI no longer prints your password.** The password argument is now optional: leave it out and the CLI asks for it without echoing, so it stays out of your shell history.
+- **Debug logs no longer include the hashed password** when LG sign-in falls back to the legacy flow.
+- **Plugin settings page**: device names containing quotes can no longer inject HTML attributes.
+
+### Changed
+
+- **Performance**:
+  - ThinQ1 polling waits for one round to finish before starting the next, so slow responses no longer pile up.
+  - Device models are kept in memory instead of being re-read from disk on every poll.
+  - Device status is built once per update instead of hundreds of times.
+  - The MQTT key pair is generated natively instead of blocking Homebridge for several seconds.
+- **AC fan speed shows 50 % in auto mode** (it was 5 %). An unknown purifier or dehumidifier speed shows the middle level.
+- **Internals**: the oven, microwave and dishwasher code shares common helpers and is about half its previous size. Test coverage went from 12 % to 62 %, with 408 tests (up from 115).
+
 ## [1.0.39] - 2026-09-19
 
 ### Fixed
