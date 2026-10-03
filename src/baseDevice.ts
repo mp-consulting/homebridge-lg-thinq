@@ -55,6 +55,9 @@ export type AccessoryContext = {
 export class BaseDevice extends EventEmitter {
   /** Cached status instance */
   private _cachedStatus: unknown = null;
+  /** Status class and snapshot key that produced the cached status */
+  private _cachedStatusClass: unknown = null;
+  private _cachedStatusKey: string | undefined = undefined;
   /** Snapshot version that produced the cached status (-1 = never cached) */
   private _cachedStatusVersion: number = -1;
   /** Monotonic counter incremented whenever the underlying snapshot changes */
@@ -85,7 +88,8 @@ export class BaseDevice extends EventEmitter {
   }
 
   public update(snapshot: Record<string, unknown>) {
-    this.platform.log.debug('[' + this.accessory.context.device.name + '] Received snapshot: ', JSON.stringify(snapshot));
+    // %j defers JSON serialisation to the logger, which skips it when debug logging is off
+    this.platform.log.debug('[%s] Received snapshot: %j', this.accessory.context.device.name, snapshot);
     this.accessory.context.device.data.snapshot = mergeSnapshot(this.accessory.context.device.snapshot, snapshot);
     this.updateAccessoryCharacteristic(this.accessory.context.device);
   }
@@ -118,15 +122,20 @@ export class BaseDevice extends EventEmitter {
     StatusClass: new (data: any, model: any) => T,
     snapshotKey?: string,
   ): T {
-    if (this._cachedStatus && this._cachedStatusVersion === this._lastSnapshotVersion) {
+    const device = this.accessory.context.device;
+    const key = snapshotKey ?? DeviceRegistry.getSnapshotKey(device.type);
+    if (this._cachedStatus
+      && this._cachedStatusVersion === this._lastSnapshotVersion
+      && this._cachedStatusClass === StatusClass
+      && this._cachedStatusKey === key) {
       return this._cachedStatus as T;
     }
 
-    const device = this.accessory.context.device;
-    const key = snapshotKey ?? DeviceRegistry.getSnapshotKey(device.type);
     const snapshotData = key ? device.snapshot?.[key] : device.snapshot;
     this._cachedStatus = new StatusClass(snapshotData, device.deviceModel);
     this._cachedStatusVersion = this._lastSnapshotVersion;
+    this._cachedStatusClass = StatusClass;
+    this._cachedStatusKey = key;
 
     return this._cachedStatus as T;
   }
@@ -236,13 +245,23 @@ export class BaseDevice extends EventEmitter {
    */
   protected updateSnapshotValue(path: string, value: unknown): void {
     const device = this.accessory.context.device;
+    if (!isPlainObject(device.data.snapshot)) {
+      device.data.snapshot = {};
+    }
     const keys = path.split('.');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let obj: Record<string, any> = device.data.snapshot;
 
+    // Air devices (AC, purifier, AeroTower...) key their snapshot by the full dotted path at
+    // the root, e.g. snapshot['airState.operation']. Write that flat key so Status sees it.
+    if (path in obj || (keys.length > 1 && !isPlainObject(obj[keys[0]]))) {
+      obj[path] = value;
+      return;
+    }
+
     // Navigate to the parent of the target key
     for (let i = 0; i < keys.length - 1; i++) {
-      if (!(keys[i] in obj)) {
+      if (!isPlainObject(obj[keys[i]])) {
         obj[keys[i]] = {};
       }
       obj = obj[keys[i]];
@@ -296,6 +315,14 @@ export class BaseDevice extends EventEmitter {
     }
 
     return undefined;
+  }
+
+  /**
+   * Release timers and other resources. Called by the platform before this handler is
+   * replaced (discovery retry) or its accessory removed. Subclasses with timers override it.
+   */
+  public destroy(): void {
+    // nothing to release by default
   }
 
   public static model(): string {
