@@ -1,7 +1,7 @@
 {
   "displayName": "LG ThinQ",
   "name": "@mp-consulting/homebridge-lg-thinq",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "A Homebridge plugin for controlling/monitoring LG ThinQ devices via LG ThinQ platform.",
   "author": {
     "name": "Mickael Palma",
@@ -49,7 +49,7 @@
   ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@mp-consulting/homebridge-ui-kit": "^1.2.1",
+    "@mp-consulting/homebridge-ui-kit": "^1.2.2",
     "@types/aws-iot-device-sdk": "^2.2.9",
     "@types/luxon": "^3.7.5",
     "@types/node": "^26.5.0",
