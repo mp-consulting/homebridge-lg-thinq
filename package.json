@@ -71,7 +71,7 @@
   "homepage": "https://github.com/mp-consulting/homebridge-lg-thinq#readme",
   "dependencies": {
     "@homebridge/plugin-ui-utils": "^2.2.6",
-    "@mp-consulting/homebridge-ai-kit": "file:../homebridge-mcp-server",
+    "@mp-consulting/homebridge-ai-core": "file:../homebridge-mcp-server/packages/ai-core",
     "aws-iot-device-sdk": "^2.2.16",
     "axios": "^1.20.0",
     "axios-retry": "^4.5.0",

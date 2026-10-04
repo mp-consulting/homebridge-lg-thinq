@@ -5,7 +5,7 @@
 ### Added
 
 - **Assistant in the config UI.** When an AI provider is set up in Homebridge AI Kit (the shared `HomebridgeAiKit` platform block), an **Explain** button appears next to a failed login, a failed device list, and appliances the LG ThinQ cloud reports as offline. The explanation streams into an Assistant panel, with LG ThinQ context (account vs token auth, social-login accounts, country/language, ThinQ v1/v2, LG error codes such as MS.001.03, 0110, 0102, 0106/0111, 9012). Only the error (emails masked), auth mode, region, ThinQ1 setting and non-sensitive appliance facts (name, type, online, included) are sent: never the LG login, refresh token, device IDs or serial numbers. Without the AI Kit nothing changes, apart from a small tip in the Settings tab.
-- `homebridge-ui/server.js` registers the `/ai/status`, `/ai/explain`, `/ai/ask` and `/ai/config` routes with `registerAiRoutes` from `@mp-consulting/homebridge-ai-kit/plugin` (new runtime dependency), via the new `homebridge-ui/assistant.js`.
+- `homebridge-ui/server.js` registers the `/ai/status`, `/ai/explain`, `/ai/ask` and `/ai/config` routes with `registerAiRoutes` from `@mp-consulting/homebridge-ai-core/plugin` (new runtime dependency), via the new `homebridge-ui/assistant.js`.
 
 ### Changed
 
@@ -13,7 +13,7 @@
 
 ### Release blockers
 
-- `@mp-consulting/homebridge-ai-kit` (`file:../homebridge-mcp-server`) and `@mp-consulting/homebridge-ui-kit` (`file:../homebridge-ui-kit`) are local, unpublished checkouts. Change them to `^2.0.0` and `^1.2.0` once published, and regenerate `package-lock.json`.
+- `@mp-consulting/homebridge-ai-core` (`file:../homebridge-mcp-server/packages/ai-core`) and `@mp-consulting/homebridge-ui-kit` (`file:../homebridge-ui-kit`) are local, unpublished checkouts. Change them to `^2.0.0` and `^1.2.0` once published, and regenerate `package-lock.json`.
 
 ## [1.0.42] - 2026-10-03
 
