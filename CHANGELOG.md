@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.1.1] - 2026-10-04
+
+### Fixed
+
+- **Assistant answer panel layout in the device list.** The answer to a device's **Explain** button was rendered inside the row's name column, which did not shrink, so the panel pushed the row wider than the card (the Online/Offline badge and the gear button were pushed out of view) and the device list's 400px scroll box clipped it. The answer now opens on its own full-width line below the whole row (name, badges and buttons), the device list no longer has a max height so the card grows with it, and long names and device IDs wrap. The UI also picks up `@mp-consulting/homebridge-ui-kit` 1.2.1, whose panel fills its slot and wraps its header so the title is never squeezed next to the "Assistant" badge.
+
 ## [1.1.0] - 2026-10-04
 
 ### Added
