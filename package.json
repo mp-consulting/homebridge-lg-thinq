@@ -49,7 +49,7 @@
   ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@mp-consulting/homebridge-ui-kit": "file:../homebridge-ui-kit",
+    "@mp-consulting/homebridge-ui-kit": "^1.2.0",
     "@types/aws-iot-device-sdk": "^2.2.9",
     "@types/luxon": "^3.7.5",
     "@types/node": "^26.5.0",
@@ -71,7 +71,7 @@
   "homepage": "https://github.com/mp-consulting/homebridge-lg-thinq#readme",
   "dependencies": {
     "@homebridge/plugin-ui-utils": "^2.2.6",
-    "@mp-consulting/homebridge-ai-core": "file:../homebridge-mcp-server/packages/ai-core",
+    "@mp-consulting/homebridge-ai-core": "^2.0.0",
     "aws-iot-device-sdk": "^2.2.16",
     "axios": "^1.20.0",
     "axios-retry": "^4.5.0",
