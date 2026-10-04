@@ -289,14 +289,14 @@
               <span class="me-2">${escapeHtml(d.type || 'Unknown')}</span>
               <span class="font-monospace">ID: ${escapeHtml(d.id)}</span>
             </div>
-            <div class="assistant-answer mt-2 d-none"></div>
           </div>
-          <div class="d-flex align-items-center gap-2">
+          <div class="d-flex align-items-center gap-2 flex-shrink-0">
             ${explainButton}${statusBadge}
             <button class="btn btn-link text-body-secondary p-1 btn-device-settings" data-device-id="${escapeHtml(d.id)}" title="Device settings">
               <i class="bi bi-gear"></i>
             </button>
           </div>
+          <div class="assistant-answer d-none"></div>
         </div>
       `;
     }).join('');
