@@ -153,6 +153,96 @@
   const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' };
   const escapeHtml = text => String(text ?? '').replace(/[&<>"']/g, ch => HTML_ESCAPES[ch]);
 
+  // ── Assistant (Homebridge AI Kit) ──────────────────────────────
+  // Shown only when the shared HomebridgeAiKit platform is set up and enabled.
+
+  let assistantEnabled = false;
+  let assistantAvailable = false;
+  try {
+    if (window.MpKit && MpKit.ai) {
+      const status = await MpKit.ai.status();
+      assistantAvailable = true;
+      assistantEnabled = !!(status && status.enabled);
+    }
+  } catch {
+    // Routes missing or older Homebridge UI: no Assistant
+  }
+
+  // Error text sent to the Assistant: email addresses (LG can echo the account) are masked
+  const scrubForAssistant = text => String(text ?? '').replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '<email>');
+
+  // Device facts the Assistant may see: no device ID, serial number, credentials or tokens
+  const assistantDevice = d => ({
+    name: (deviceSettings[d.id] || {}).name || d.name,
+    type: d.type,
+    online: d.online !== false,
+    includedInHomeKit: selectedDevices.has(d.id),
+  });
+
+  // Plugin settings the Assistant may see (never username, password or refresh token)
+  const assistantContext = extra => [
+    extra,
+    `Auth mode: ${config.auth_mode || 'token'}.`,
+    `Account region: country ${credentials.country || config.country || DEFAULT_COUNTRY}, `
+      + `language ${credentials.language || config.language || DEFAULT_LANGUAGE}.`,
+    config.thinq1 ? `ThinQ1 support is enabled (refresh interval ${config.refresh_interval || DEFAULT_REFRESH_INTERVAL} s).` : 'ThinQ1 support is disabled.',
+  ].filter(Boolean).join(' ');
+
+  // Streams an explanation of `error` into `answerEl`
+  const explainWithAssistant = async (button, answerEl, { error, context, device, title }) => {
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    answerEl.classList.remove('d-none');
+    const answer = MpKit.ai.renderAnswer(answerEl, { title });
+    try {
+      const res = await MpKit.ai.explain({ error: scrubForAssistant(error), context, device }, { onChunk: answer.append });
+      answer.done(res);
+    } catch (e) {
+      answer.error(e);
+    } finally {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+    }
+  };
+
+  // Shows an error in `containerId`, with an "Explain" button when the Assistant is on
+  const showProblem = (containerId, { message, context, title }) => {
+    const container = $(containerId);
+    container.classList.remove('d-none');
+    container.innerHTML = `
+      <div class="alert alert-danger mb-0">
+        <div class="d-flex justify-content-between align-items-start gap-2">
+          <div><i class="bi bi-exclamation-triangle me-1"></i>${escapeHtml(message)}</div>
+          ${assistantEnabled ? MpKit.ai.renderButton({ label: 'Explain', size: 'sm', className: 'flex-shrink-0 js-explain' }) : ''}
+        </div>
+      </div>
+      <div class="assistant-answer mt-2 d-none"></div>
+    `;
+    if (assistantEnabled) {
+      const button = container.querySelector('.js-explain');
+      const answerEl = container.querySelector('.assistant-answer');
+      button.addEventListener('click', () => explainWithAssistant(button, answerEl, {
+        error: message,
+        context: assistantContext(context),
+        title,
+      }));
+    }
+  };
+
+  const clearProblem = containerId => {
+    $(containerId).classList.add('d-none');
+    $(containerId).innerHTML = '';
+  };
+
+  // Why a device needs attention, or null when it looks fine
+  const deviceProblem = d => (d.online === false
+    ? 'The LG ThinQ cloud reports this appliance as offline (not connected to LG).'
+    : null);
+
+  if (assistantAvailable && !assistantEnabled) {
+    $('assistant-hint').classList.remove('d-none');
+  }
+
   // ── Device list ────────────────────────────────────────────────
 
   const toggleDevice = (deviceId) => {
@@ -185,6 +275,9 @@
       const statusBadge = d.online !== false ? MpKit.StatusBadge.online() : MpKit.StatusBadge.offline();
       const overrides = deviceSettings[d.id] || {};
       const displayName = overrides.name || d.name;
+      const explainButton = assistantEnabled && deviceProblem(d)
+        ? MpKit.ai.renderButton({ label: 'Explain', size: 'sm', className: 'js-explain-device', title: 'Explain this device problem' })
+        : '';
       return `
         <div class="device-item ${isSelected ? 'device-selected' : ''}" data-device-id="${escapeHtml(d.id)}">
           <div class="device-checkbox">
@@ -196,9 +289,10 @@
               <span class="me-2">${escapeHtml(d.type || 'Unknown')}</span>
               <span class="font-monospace">ID: ${escapeHtml(d.id)}</span>
             </div>
+            <div class="assistant-answer mt-2 d-none"></div>
           </div>
           <div class="d-flex align-items-center gap-2">
-            ${statusBadge}
+            ${explainButton}${statusBadge}
             <button class="btn btn-link text-body-secondary p-1 btn-device-settings" data-device-id="${escapeHtml(d.id)}" title="Device settings">
               <i class="bi bi-gear"></i>
             </button>
@@ -208,9 +302,9 @@
     }).join('');
 
     list.querySelectorAll('.device-item').forEach(item => {
-      // Checkbox toggle on row click (excluding gear button)
+      // Checkbox toggle on row click (excluding gear button and the Assistant)
       item.addEventListener('click', e => {
-        if (!e.target.closest('.btn-device-settings')) {
+        if (!e.target.closest('.btn-device-settings, .js-explain-device, .assistant-answer')) {
           toggleDevice(item.dataset.deviceId);
         }
       });
@@ -220,6 +314,23 @@
       btn.addEventListener('click', e => {
         e.stopPropagation();
         openDeviceSettings(btn.dataset.deviceId);
+      });
+    });
+
+    list.querySelectorAll('.js-explain-device').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const row = btn.closest('.device-item');
+        const device = devices.find(d => d.id === row.dataset.deviceId);
+        if (!device) {
+          return;
+        }
+        explainWithAssistant(btn, row.querySelector('.assistant-answer'), {
+          error: deviceProblem(device) || 'The appliance does not respond as expected.',
+          context: assistantContext('The user is looking at the device list of the LG ThinQ plugin settings.'),
+          device: assistantDevice(device),
+          title: `Why does ${(deviceSettings[device.id] || {}).name || device.name || 'this appliance'} need attention?`,
+        });
       });
     });
 
@@ -488,6 +599,7 @@
   const loadDevices = async () => {
     $('refresh-spinner').classList.remove('d-none');
     $('btn-refresh').disabled = true;
+    clearProblem('devices-problem');
     try {
       const res = await homebridge.request('/get-all-devices', {
         country: credentials.country,
@@ -502,10 +614,16 @@
         }
         renderDevices();
       } else {
-        homebridge.toast.error(res.error || 'Failed to load devices');
+        throw new Error(res.error || 'Failed to load devices');
       }
     } catch (e) {
-      homebridge.toast.error(e.message || 'Failed to load devices');
+      const message = e.message || 'Failed to load devices';
+      homebridge.toast.error(message);
+      showProblem('devices-problem', {
+        message,
+        context: 'Loading the device list from the LG ThinQ cloud with the stored refresh token failed in the plugin settings.',
+        title: 'Why did loading devices fail?',
+      });
     } finally {
       $('refresh-spinner').classList.add('d-none');
       $('btn-refresh').disabled = false;
@@ -568,6 +686,7 @@
 
     $('login-spinner').classList.remove('d-none');
     $('btn-login').disabled = true;
+    clearProblem('login-problem');
 
     try {
       const res = await homebridge.request('/login-by-user-pass', { country, language, username, password });
@@ -597,10 +716,17 @@
         await loadDevices();
         showStep('devices');
       } else {
-        homebridge.toast.error(res.error || 'Login failed');
+        throw new Error(res.error || 'Login failed');
       }
     } catch (e) {
-      homebridge.toast.error(e.message || 'Login failed');
+      const message = e.message || 'Login failed';
+      homebridge.toast.error(message);
+      showProblem('login-problem', {
+        message,
+        context: 'Signing in to the LG ThinQ cloud with an LG account email and password from the plugin settings failed. '
+          + `Selected region: ${country} / ${language}.`,
+        title: 'Why did the login fail?',
+      });
     } finally {
       $('login-spinner').classList.add('d-none');
       $('btn-login').disabled = false;

@@ -74,6 +74,28 @@ npm i -g homebridge-lg-thinq
 
 * See [Device Configuration](docs/device-configuration.md)
 
+## Assistant
+
+The config UI can explain problems with the **Assistant**. It is off until you set up
+an AI provider once for all MP Consulting plugins in
+[Homebridge AI Kit](https://github.com/mp-consulting/homebridge-ai-kit) (or the
+Homebridge Glass UI): the plugin reads the shared `HomebridgeAiKit` platform block from
+`config.json` and has no AI settings of its own. When it is not set up, the UI looks
+exactly as before, with a small tip in the Settings tab.
+
+When it is enabled, **Explain** buttons appear next to a failed login, a failed device
+list, and every appliance the LG ThinQ cloud reports as offline. The answer streams into
+an Assistant panel below.
+
+What is sent to the provider: the error message (email addresses masked), the auth mode,
+the country and language, whether ThinQ1 support is on (and its refresh interval), and
+for an appliance its name, type, online flag and whether it is included in HomeKit. Your
+LG email, password, refresh token, device IDs and serial numbers are never sent, and the
+provider's API key stays on the Homebridge server.
+
+The plugin's settings are mostly per-appliance options and LG sign-in details, so there
+is no "Describe Your Setup" config assistant in this plugin.
+
 ## Implementation Status
 
 | *Device*       | *Implementation* | *Status* | *Control* | *Thinq2* | *Thinq1* |
@@ -99,6 +121,21 @@ for more device support please open issue request.
 
 If you have a question, please [start a discussion](https://github.com/mp-consulting/homebridge-lg-thinq/discussions/new) or leave a message at [discord channel](https://discord.gg/wEfQpCDtS7).  
 If you would like to report a bug, please [open an issue](https://github.com/mp-consulting/homebridge-lg-thinq/issues/new/choose).
+
+## Development
+
+```
+npm install
+npm run build
+npm run lint
+npm test
+```
+
+The build vendors `@mp-consulting/homebridge-ui-kit` and Bootstrap into
+`homebridge-ui/public/lib/` with `mp-ui-kit-copy --vendor`. Until
+`@mp-consulting/homebridge-ai-kit` 2.0.0 and `@mp-consulting/homebridge-ui-kit` 1.2.0
+are published, both are installed from sibling checkouts (`file:../homebridge-mcp-server`
+and `file:../homebridge-ui-kit`); they must become `^2.0.0` and `^1.2.0` before release.
 
 ## CLI Usage
 

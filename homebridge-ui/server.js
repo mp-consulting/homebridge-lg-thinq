@@ -2,6 +2,7 @@ import { API } from '../dist/api/API.js';
 import { Auth } from '../dist/api/Auth.js';
 import { HomebridgePluginUiServer, RequestError } from '@homebridge/plugin-ui-utils';
 import { DeviceType } from '../dist/lib/constants.js';
+import { registerAssistant } from './assistant.js';
 
 /**
  * API and Auth log on their error and fallback paths (e.g. when the ThinQ v1 gateway
@@ -28,6 +29,9 @@ class LGThinQUiServer extends HomebridgePluginUiServer {
     this.onRequest('/login-by-user-pass', this.handleLogin.bind(this));
     this.onRequest('/get-all-devices', this.handleGetDevices.bind(this));
     this.onRequest('/restart', this.handleRestart.bind(this));
+
+    // Assistant: /ai/status, /ai/explain, /ai/ask, /ai/config (configured in Homebridge AI Kit)
+    registerAssistant(this);
 
     // Signal ready
     this.ready();
