@@ -10,6 +10,7 @@
 
 ### Changed
 
+- **Settings page** uses `@mp-consulting/homebridge-ui-kit` 1.4.0: long device names wrap to two lines, tabs scroll instead of wrapping, buttons press in, hover effects only apply with a mouse or trackpad, dialogs and toasts ease in and out, and the Assistant glow no longer repaints every frame.
 - **Settings page**: steps and the device settings panel ease in, the success badge pops in, and buttons press in slightly (no movement with reduced motion).
 
 ## [1.1.2] - 2026-10-04
