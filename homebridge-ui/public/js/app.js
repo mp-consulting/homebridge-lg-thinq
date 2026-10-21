@@ -1,6 +1,11 @@
 (async () => {
   'use strict';
 
+  // The login form never navigates: Return submits it and the submit handler further
+  // down does the work. Registered before the first await so a Return pressed while
+  // settings and the session check load does not reload the page.
+  document.getElementById('login-form').addEventListener('submit', e => e.preventDefault());
+
   // Confirm theme from Homebridge settings (overrides the early OS-preference detection)
   try {
     const settings = await homebridge.getUserSettings();
@@ -245,13 +250,18 @@
 
   // ── Device list ────────────────────────────────────────────────
 
-  const toggleDevice = (deviceId) => {
-    if (selectedDevices.has(deviceId)) {
-      selectedDevices.delete(deviceId);
-    } else {
+  // Toggles one row in place: re-rendering the list would restart the row's background
+  // transition and wipe any open Assistant answer.
+  const toggleDevice = (item) => {
+    const deviceId = item.dataset.deviceId;
+    const sel = !selectedDevices.has(deviceId);
+    if (sel) {
       selectedDevices.add(deviceId);
+    } else {
+      selectedDevices.delete(deviceId);
     }
-    renderDevices();
+    item.classList.toggle('device-selected', sel);
+    item.querySelector('.device-checkbox input').checked = sel;
     updateSelectAllButton();
   };
 
@@ -292,8 +302,9 @@
           </div>
           <div class="d-flex align-items-center gap-2 flex-shrink-0">
             ${explainButton}${statusBadge}
-            <button class="btn btn-link text-body-secondary p-1 btn-device-settings" data-device-id="${escapeHtml(d.id)}" title="Device settings">
-              <i class="bi bi-gear"></i>
+            <button type="button" class="btn btn-link text-body-secondary p-1 btn-touch-icon btn-device-settings" data-device-id="${escapeHtml(d.id)}"
+              title="Device settings" aria-label="Device settings for ${escapeHtml(displayName)}">
+              <i class="bi bi-gear" aria-hidden="true"></i>
             </button>
           </div>
           <div class="assistant-answer d-none"></div>
@@ -305,7 +316,7 @@
       // Checkbox toggle on row click (excluding gear button and the Assistant)
       item.addEventListener('click', e => {
         if (!e.target.closest('.btn-device-settings, .js-explain-device, .assistant-answer')) {
-          toggleDevice(item.dataset.deviceId);
+          toggleDevice(item);
         }
       });
     });
@@ -501,7 +512,10 @@
     }
 
     $('device-settings-panel').classList.remove('d-none');
-    $('device-settings-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    $('device-settings-panel').scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'nearest',
+    });
   };
 
   const closeDeviceSettings = () => {
@@ -674,7 +688,11 @@
     $('login-form').classList.remove('d-none');
   });
 
-  $('btn-login').addEventListener('click', async () => {
+  $('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    if ($('btn-login').disabled) {
+      return;
+    }
     const username = $('username').value.trim();
     const password = $('password').value;
     const { country, language } = getSelectedCountryLanguage();

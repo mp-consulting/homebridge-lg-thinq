@@ -41,7 +41,7 @@
       </div>
 
       <div id="active-session-notice" class="alert alert-info d-none">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
           <div>
             <strong>Active Session Detected</strong>
             <p class="mb-0 small">Using the existing session from Homebridge</p>
@@ -55,7 +55,7 @@
         </div>
       </div>
 
-      <div class="card border-0 shadow-sm" id="login-form">
+      <form class="card border-0 shadow-sm" id="login-form" novalidate>
         <div class="card-body">
           <div class="mb-3">
             <label for="country_language" class="form-label">Country / Language</label>
@@ -65,13 +65,15 @@
 
           <div class="mb-3">
             <label for="username" class="form-label">Email</label>
-            <input type="text" class="form-control" id="username" placeholder="your@email.com">
+            <input type="email" class="form-control" id="username" placeholder="your@email.com"
+              autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
             <div class="form-text">Enter your LG ThinQ account email</div>
           </div>
 
           <div class="mb-3">
             <label for="password" class="form-label">Password</label>
-            <input type="password" class="form-control" id="password" placeholder="••••••••">
+            <input type="password" class="form-control" id="password" placeholder="••••••••"
+              autocomplete="current-password" enterkeyhint="go">
           </div>
 
           <div class="form-check mb-3">
@@ -79,7 +81,7 @@
             <label class="form-check-label" for="rememberCredentials">Remember username &amp; password (optional)</label>
           </div>
 
-          <button id="btn-login" class="btn btn-primary">
+          <button type="submit" id="btn-login" class="btn btn-primary">
             <span class="spinner-border spinner-border-sm d-none me-1" id="login-spinner" aria-hidden="true"></span>
             Connect Account
           </button>
@@ -91,7 +93,7 @@
             </a>
           </div>
         </div>
-      </div>
+      </form>
 
       <!-- Login error + Assistant explanation (filled by app.js) -->
       <div id="login-problem" class="mt-3 d-none"></div>
@@ -123,7 +125,7 @@
         <!-- Devices tab -->
         <div class="tab-pane fade show active" id="pane-devices" role="tabpanel">
           <div class="card border-0 shadow-sm mb-3">
-            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center py-3">
+            <div class="card-header bg-transparent border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
               <h5 class="mb-0"><i class="bi bi-grid me-2"></i>Discovered Devices <span id="device-count" class="badge bg-secondary ms-1">0</span></h5>
               <div class="d-flex gap-2">
                 <button id="btn-select-all" class="btn btn-outline-secondary btn-sm">Select All</button>
@@ -147,8 +149,8 @@
           <div id="device-settings-panel" class="card border-0 shadow-sm mb-4 d-none">
             <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center py-3">
               <h5 class="mb-0" id="device-settings-title"><i class="bi bi-gear me-2"></i>Device Settings</h5>
-              <button class="btn btn-link text-body-secondary p-0" id="btn-close-device-settings">
-                <i class="bi bi-x-lg"></i>
+              <button type="button" class="btn btn-link text-body-secondary p-0 btn-touch-icon" id="btn-close-device-settings" aria-label="Close device settings">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
               </button>
             </div>
             <div class="card-body" id="device-settings-content"></div>
@@ -180,7 +182,8 @@
               </div>
               <div id="settings-token-group">
                 <label class="form-label" for="settings-refresh-token">Refresh Token</label>
-                <input type="text" class="form-control font-monospace" id="settings-refresh-token" placeholder="Paste your refresh token">
+                <input type="text" class="form-control font-monospace" id="settings-refresh-token" placeholder="Paste your refresh token"
+                  autocapitalize="none" autocorrect="off" spellcheck="false">
               </div>
             </div>
           </div>
@@ -193,11 +196,11 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label" for="settings-country">Country</label>
-                  <input type="text" class="form-control" id="settings-country" placeholder="US">
+                  <input type="text" class="form-control" id="settings-country" placeholder="US" autocapitalize="characters" maxlength="2">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label" for="settings-language">Language</label>
-                  <input type="text" class="form-control" id="settings-language" placeholder="en-US">
+                  <input type="text" class="form-control" id="settings-language" placeholder="en-US" autocapitalize="none">
                 </div>
               </div>
             </div>
@@ -214,7 +217,7 @@
                 <div class="form-text">Enable legacy ThinQ v1 device support (polling-based).</div>
               </div>
               <label class="form-label" for="settings-refresh-interval">Refresh Interval (seconds)</label>
-              <input type="number" class="form-control" id="settings-refresh-interval" min="1" style="max-width: 140px;">
+              <input type="number" class="form-control" id="settings-refresh-interval" min="1" inputmode="numeric" style="max-width: 140px;">
               <div class="form-text">How often to poll ThinQ1 device status. Default: 60s.</div>
             </div>
           </div>

@@ -1,9 +1,73 @@
 /* LG ThinQ — plugin-specific styles only.
    Common components (header, status, cards, footer) are in lib/kit.css */
 
-/* Step wizard */
+/* Touch: no grey tap flash, no text inflation on rotate, no double-tap zoom delay
+   or long-press text selection on controls */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+.btn,
+.nav-link {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Touch screens keep :hover after a tap: show the resting colors there instead */
+@media (hover: none) {
+  .btn:where(:not(.active, .show, :disabled, .disabled)):hover {
+    color: var(--bs-btn-color);
+    background-color: var(--bs-btn-bg);
+    border-color: var(--bs-btn-border-color);
+  }
+
+  .mp-tabs .nav-link:not(.active):hover {
+    color: var(--bs-secondary-color);
+  }
+}
+
+/* Button press feedback */
+@media (prefers-reduced-motion: no-preference) {
+  .btn {
+    transition:
+      color 0.15s ease-in-out,
+      background-color 0.15s ease-in-out,
+      border-color 0.15s ease-in-out,
+      box-shadow 0.15s ease-in-out,
+      transform 160ms var(--mp-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+  }
+
+  .btn:not(:disabled):active {
+    transform: scale(0.97);
+  }
+}
+
+/* Step wizard. Steps are shown by removing d-none, so @starting-style fades them in. */
 .step-container {
   margin-bottom: 2rem;
+  transition: opacity 250ms var(--mp-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+@starting-style {
+  .step-container {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .step-container {
+    transition:
+      opacity 250ms var(--mp-ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+      transform 250ms var(--mp-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+  }
+
+  @starting-style {
+    .step-container {
+      transform: translateY(8px);
+    }
+  }
 }
 
 .step-header {
@@ -28,6 +92,27 @@
 
 .step-number-success {
   background-color: var(--bs-success);
+  transition: opacity 200ms ease-out 100ms;
+}
+
+@starting-style {
+  .step-number-success {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .step-number-success {
+    transition:
+      transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1) 100ms,
+      opacity 200ms ease-out 100ms;
+  }
+
+  @starting-style {
+    .step-number-success {
+      transform: scale(0.6);
+    }
+  }
 }
 
 .step-title {
@@ -46,15 +131,25 @@
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--bs-border-color);
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  touch-action: manipulation;
+  transition: background-color 150ms var(--mp-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
-.device-item:hover {
-  background-color: var(--mp-surface);
+/* Hover only where a real pointer hovers; touch would leave it stuck after a tap */
+@media (hover: hover) and (pointer: fine) {
+  .device-item:hover {
+    background-color: var(--mp-surface);
+  }
 }
 
 .device-item.device-selected {
   background-color: rgba(var(--mp-primary-rgb), 0.1);
+}
+
+/* Press feedback for the row toggle, but not while pressing a button or the
+   Assistant answer inside the row */
+.device-item:active:not(:has(.btn:active, .assistant-answer:active)) {
+  background-color: rgba(var(--mp-primary-rgb), 0.15);
 }
 
 .device-item:last-child {
@@ -102,4 +197,53 @@
   border: 1px solid var(--mp-border);
   border-radius: 0.5rem;
   text-align: center;
+}
+
+/* 44px touch target for icon-only buttons (device gear, panel close); the negative
+   margins keep their visual footprint so the rows and header do not grow */
+.btn-touch-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -0.5625rem -0.7rem;
+}
+
+/* The close X sits at the header's right edge: keep the icon where it was */
+#btn-close-device-settings {
+  margin-right: -0.95rem;
+}
+
+/* iOS zooms the page when focusing a field under 16px */
+@media (pointer: coarse) {
+  .form-control-sm,
+  .form-select-sm {
+    font-size: 16px;
+  }
+}
+
+/* Per-device settings panel: shown by removing d-none, so @starting-style fades it in */
+#device-settings-panel {
+  transition: opacity 200ms var(--mp-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+@starting-style {
+  #device-settings-panel {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #device-settings-panel {
+    transition:
+      opacity 200ms var(--mp-ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+      transform 200ms var(--mp-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+  }
+
+  @starting-style {
+    #device-settings-panel {
+      transform: translateY(8px);
+    }
+  }
 }

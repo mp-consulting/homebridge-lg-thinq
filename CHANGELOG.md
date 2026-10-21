@@ -1,5 +1,18 @@
 # Change Log
 
+## [Unreleased]
+
+### Fixed
+
+- **Settings page**: pressing Return in the login form signs in, and the login fields work with password managers and phone keyboards.
+- **Devices**: selecting a device updates its row in place instead of rebuilding the list, so an open Assistant answer is no longer wiped.
+- **Settings page on phones**: inputs in the device settings no longer make iOS zoom in, the gear and close buttons have 44px touch areas and labels, rows and buttons no longer stay highlighted after a tap, and the card header wraps.
+
+### Changed
+
+- **Settings page** uses `@mp-consulting/homebridge-ui-kit` 1.4.0: long device names wrap to two lines, tabs scroll instead of wrapping, buttons press in, hover effects only apply with a mouse or trackpad, dialogs and toasts ease in and out, and the Assistant glow no longer repaints every frame.
+- **Settings page**: steps and the device settings panel ease in, the success badge pops in, and buttons press in slightly (no movement with reduced motion).
+
 ## [1.1.2] - 2026-10-04
 
 ### Fixed
